@@ -16,6 +16,114 @@ const SKIP_TAGS = new Set([
 ]);
 
 const PROCESSED_ATTR = "data-slack-emoji-processed";
+const POPOVER_ID = "slack-emoji-popover";
+const POPOVER_GAP = 8;
+
+let popoverEl: HTMLElement | null = null;
+let hideTimeout: ReturnType<typeof setTimeout> | null = null;
+
+function getPopover(): HTMLElement {
+  if (popoverEl && popoverEl.isConnected) return popoverEl;
+
+  const el = document.createElement("div");
+  el.id = POPOVER_ID;
+  el.setAttribute("popover", "manual");
+  el.style.cssText = `
+    position: fixed;
+    margin: 0;
+    padding: 8px 12px;
+    background: #1a1a2e;
+    color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 12px;
+    pointer-events: none;
+    z-index: 2147483647;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    border: none;
+    opacity: 0;
+    transition: opacity 0.12s ease;
+  `;
+
+  const preview = document.createElement("img");
+  preview.style.cssText = `
+    width: 72px;
+    height: 72px;
+    object-fit: contain;
+    flex-shrink: 0;
+  `;
+  preview.dataset.role = "preview";
+
+  const label = document.createElement("span");
+  label.style.cssText = `
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  `;
+  label.dataset.role = "label";
+
+  el.appendChild(preview);
+  el.appendChild(label);
+  document.body.appendChild(el);
+  popoverEl = el;
+  return el;
+}
+
+function positionPopover(popover: HTMLElement, anchor: HTMLElement): void {
+  const rect = anchor.getBoundingClientRect();
+  const popW = popover.offsetWidth;
+  const popH = popover.offsetHeight;
+
+  let top = rect.top - popH - POPOVER_GAP;
+  let left = rect.left + rect.width / 2 - popW / 2;
+
+  if (top < POPOVER_GAP) {
+    top = rect.bottom + POPOVER_GAP;
+  }
+  left = Math.max(POPOVER_GAP, Math.min(left, window.innerWidth - popW - POPOVER_GAP));
+
+  popover.style.top = `${top}px`;
+  popover.style.left = `${left}px`;
+}
+
+function showEmojiPopover(img: HTMLImageElement): void {
+  if (hideTimeout) {
+    clearTimeout(hideTimeout);
+    hideTimeout = null;
+  }
+
+  const popover = getPopover();
+  const preview = popover.querySelector('[data-role="preview"]') as HTMLImageElement;
+  const label = popover.querySelector('[data-role="label"]') as HTMLSpanElement;
+
+  preview.src = img.src;
+  label.textContent = img.alt;
+
+  try { popover.showPopover(); } catch { /* already open */ }
+
+  positionPopover(popover, img);
+  popover.style.opacity = "1";
+}
+
+function hideEmojiPopover(): void {
+  hideTimeout = setTimeout(() => {
+    if (!popoverEl) return;
+    popoverEl.style.opacity = "0";
+    setTimeout(() => {
+      try { popoverEl?.hidePopover(); } catch { /* already closed */ }
+    }, 120);
+  }, 80);
+}
+
+function attachPopoverListeners(img: HTMLElement): void {
+  img.addEventListener("mouseenter", () => showEmojiPopover(img as HTMLImageElement));
+  img.addEventListener("mouseleave", hideEmojiPopover);
+}
 
 function shouldSkipNode(node: Node): boolean {
   let current = node.parentElement;
@@ -31,7 +139,6 @@ function createEmojiImg(url: string, name: string): HTMLElement {
   const img = document.createElement("img");
   img.src = url;
   img.alt = `:${name}:`;
-  img.title = `:${name}:`;
   img.className = "slack-custom-emoji";
   img.style.cssText = `
     display: inline;
@@ -41,6 +148,7 @@ function createEmojiImg(url: string, name: string): HTMLElement {
     vertical-align: -0.1em;
     margin: 0 1px;
   `;
+  attachPopoverListeners(img);
   return img;
 }
 

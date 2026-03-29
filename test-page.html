@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Emoji Extension Test Page</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.6;
+      color: #1a1a2e;
+      background: #f0f0f5;
+      padding: 2rem;
+    }
+    .container { max-width: 800px; margin: 0 auto; }
+    h1 {
+      font-size: 1.75rem;
+      margin-bottom: 0.25rem;
+    }
+    .subtitle {
+      color: #666;
+      margin-bottom: 2rem;
+      font-size: 0.95rem;
+    }
+    section {
+      background: #fff;
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.25rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    section h2 {
+      font-size: 1.1rem;
+      margin-bottom: 0.75rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid #eee;
+    }
+    .badge {
+      display: inline-block;
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 999px;
+      margin-left: 0.5rem;
+      vertical-align: middle;
+    }
+    .badge.replace { background: #d4edda; color: #155724; }
+    .badge.skip    { background: #fff3cd; color: #856404; }
+
+    p { margin-bottom: 0.6rem; }
+    ul { padding-left: 1.5rem; margin-bottom: 0.6rem; }
+    li { margin-bottom: 0.35rem; }
+
+    pre, code {
+      background: #f5f5f7;
+      border-radius: 6px;
+      font-family: "SF Mono", "Fira Code", "Consolas", monospace;
+      font-size: 0.9em;
+    }
+    code { padding: 2px 6px; }
+    pre { padding: 1rem; overflow-x: auto; margin-bottom: 0.6rem; }
+
+    textarea, input[type="text"] {
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-family: inherit;
+      margin-bottom: 0.6rem;
+    }
+    textarea { min-height: 60px; resize: vertical; }
+
+    .chat {
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+    .chat .msg {
+      padding: 0.6rem 1rem;
+      border-radius: 16px;
+      max-width: 75%;
+      font-size: 0.95rem;
+    }
+    .chat .msg.left {
+      background: #e9ecef;
+      align-self: flex-start;
+      border-bottom-left-radius: 4px;
+    }
+    .chat .msg.right {
+      background: #4a76f5;
+      color: #fff;
+      align-self: flex-end;
+      border-bottom-right-radius: 4px;
+    }
+
+    table { width: 100%; border-collapse: collapse; margin-bottom: 0.6rem; }
+    th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid #eee; }
+    th { font-weight: 600; font-size: 0.85rem; color: #666; text-transform: uppercase; letter-spacing: 0.03em; }
+
+    #dynamic-target {
+      min-height: 40px;
+      border: 2px dashed #ccc;
+      border-radius: 8px;
+      padding: 0.75rem;
+      margin-top: 0.5rem;
+      transition: border-color 0.2s;
+    }
+    #dynamic-target:not(:empty) { border-color: #4a76f5; }
+    button {
+      background: #4a76f5;
+      color: #fff;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    button:hover { background: #3a5fd0; }
+
+    .editable {
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 0.5rem 0.75rem;
+      min-height: 40px;
+    }
+    .editable:focus { outline: 2px solid #4a76f5; border-color: transparent; }
+
+    .emoji-ref {
+      display: inline-block;
+      background: #f0f0f5;
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-family: "SF Mono", "Fira Code", monospace;
+      font-size: 0.8em;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <h1>Slack Emoji Everywhere — Test Page</h1>
+  <p class="subtitle">Open this page with the extension active and signed in. All emoji codes below are real custom emojis from your workspace. Green-badge sections should get replaced; yellow-badge sections should stay as text.</p>
+
+  <!-- ============================================ -->
+  <section>
+    <h2>Custom Emojis — Basic <span class="badge replace">should replace</span></h2>
+    <p>Classic: :1up: :1a: :afk:</p>
+    <p>HTTP status codes: :404: :500: :200: :401_unauthorized: :403_forbidden:</p>
+    <p>Numbers: :1000: :-100: :99: :180:</p>
+  </section>
+
+  <!-- ============================================ -->
+  <section>
+    <h2>Inline with Surrounding Text <span class="badge replace">should replace</span></h2>
+    <p>This is :absolute_cinema: right here, truly amazing work.</p>
+    <p>I'm going :afk: for lunch, back in an hour.</p>
+    <p>When the deploy fails :ah_shit_here_we_go_again: and you're like :ahhhhhhhhh:</p>
+    <p>Getting that:access-denied:error again on staging.</p>
+  </section>
+
+  <!-- ============================================ -->
+  <section>
+    <h2>Special Characters in Names <span class="badge replace">should replace</span></h2>
+    <p>Hyphens: :access-denied: :afri-cola: :ai-slop: :101-issues: :20-euroschein:</p>
+    <p>Underscores: :all_the_things: :4k_resolution: :ah_shit_here_we_go_again:</p>
+    <p>Plus signs: :+1_+1: :+1_+1_+1: :+1_+1_+1_+1: :18+: :+0_5:</p>
+    <p>Mixed: :7_vs_wild: :3d_drucker: :adrian_kreisliga_platzwart:</p>
+  </section>
+
+  <!-- ============================================ -->
+  <section>
+    <h2>Animated GIFs <span class="badge replace">should replace</span></h2>
+    <p>These should appear as animated images:</p>
+    <p>:alarm: :alert: :ahhhhhhhhh: :aaaaaah_cat: :ah_shit_here_we_go_again: :aaw_yeah: :access-denied: :3d_drucker:</p>
+  </section>
+
+  <!-- ============================================ -->
+  <section>
+    <h2>Multiple on One Line <span class="badge replace">should replace</span></h2>
+    <p>:1up: :404: :500: :200: :99: :1a: :afk: :alarm: :alert:</p>
+    <p>:absolute_cinema: :actually: :ai_drunk: :agent: :all_the_things:</p>
+  </section>
+
+  <!-- ============================================ -->
+  <section>
+    <h2>Inside a Table <span class="badge replace">should replace</span></h2>
+    <table>
+      <thead>
+        <tr><th>Status</th><th>Endpoint</th><th>Response</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>:200:</td><td>/api/users</td><td>All good :1a:</td></tr>
+        <tr><td>:401_unauthorized:</td><td>/api/admin</td><td>:access-denied: Need auth</td></tr>
+        <tr><td>:403_forbidden:</td><td>/api/secrets</td><td>:alert: Forbidden</td></tr>
+        <tr><td>:404:</td><td>/api/nope</td><td>:all_the_things: Not found</td></tr>
+        <tr><td>:500:</td><td>/api/crash</td><td>:alarm: Internal error</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============================================ -->
+  <section>
+    <h2>Inside Lists &amp; Headings <span class="badge replace">should replace</span></h2>
+    <h3>:agent: Sprint Review</h3>
+    <ul>
+      <li>:1a: Deployed new feature</li>
+      <li>:absolute_cinema: Demo went great</li>
+      <li>:101-issues: Backlog grooming tomorrow</li>
+      <li>:aero_press: Coffee break at 3pm</li>
+      <li>:afk: Team offsite next Friday</li>
+    </ul>
+  </section>
+
+  <!-- ============================================ -->
+  <section>
+    <h2>Chat-Style Bubbles <span class="badge replace">should replace</span></h2>
+    <div class="chat">
+      <div class="msg left">Hey, did you see the prod error? :alarm:</div>
+      <div class="msg right">:ahhhhhhhhh: which endpoint?</div>
+      <div class="msg left">The /admin route — :401_unauthorized: for everyone</div>
+      <div class="msg right">:ah_shit_here_we_go_again: let me check</div>
+      <div class="msg left">Found it! :1a: it was a config issue</div>
+      <div class="msg right">:absolute_cinema: nice catch :+1_+1:</div>
+    </div>
+  </section>
+
+  <!-- ============================================ -->
+  <section>
+    <h2>Alias Emojis <span class="badge replace">should replace</span></h2>
+    <p>These are aliases that point to other emojis. The extension should resolve the chain:</p>
+    <p>:aaaaaaaaah: (alias for ahhhhhhhhh)</p>
+    <p>:404_not_found: (alias for 404)</p>
+    <p>:agent_smith: (alias for agent)</p>
+    <p>:+2: (alias for plus2)</p>
+    <p>:+_1: (alias for plus_one)</p>
+    <p>:528g: (alias for leichter_als_gedacht)</p>
+  </section>
+
+  <!-- ============================================ -->
+  <section>
+    <h2>Edge Cases <span class="badge replace">should replace</span></h2>
+    <p>Empty colon pair (should NOT match): :: or : :</p>
+    <p>Single colon: just a : in the middle</p>
+    <p>Triple colon: :::404::: — only the inner :404: should match</p>
+    <p>Back-to-back: :1up::404::500: — three emojis, no spaces</p>
+    <p>Nested-looking: :absolute:cinema: — matches :absolute: if it exists, then leftover</p>
+    <p>Non-existent emoji: :this_emoji_definitely_does_not_exist_xyz: — should stay as text</p>
+  </section>
+
+  <!-- ============================================ -->
+  <section>
+    <h2>Code Block — Should NOT Replace <span class="badge skip">should skip</span></h2>
+    <p>The extension skips <code>&lt;code&gt;</code> and <code>&lt;pre&gt;</code> tags:</p>
+    <code>const status = ":404:"; // should stay as text</code>
+    <pre>function getEmoji() {
+  return ":absolute_cinema:";  // should stay as text
+  // :alarm: :alert: :1up:
+}</pre>
+    <p>But this paragraph after the code block :1up: <strong>should</strong> be replaced.</p>
+  </section>
+
+  <!-- ============================================ -->
+  <section>
+    <h2>Form Fields — Should NOT Replace <span class="badge skip">should skip</span></h2>
+    <p>Text inside inputs and textareas should stay untouched:</p>
+    <input type="text" value="Status: :404: :500: :access-denied:" readonly>
+    <textarea readonly>Emojis in textarea:
+:absolute_cinema: :alarm: :1up:
+These should remain as plain text.</textarea>
+    <p>But this text outside the inputs :absolute_cinema: <strong>should</strong> be replaced.</p>
+  </section>
+
+  <!-- ============================================ -->
+  <section>
+    <h2>ContentEditable — Should NOT Replace <span class="badge skip">should skip</span></h2>
+    <div class="editable" contenteditable="true">
+      Try typing here: :1up: :404: :alarm: — the extension should skip contenteditable regions.
+    </div>
+  </section>
+
+  <!-- ============================================ -->
+  <section>
+    <h2>Dynamic Content (MutationObserver) <span class="badge replace">should replace</span></h2>
+    <p>Click the button to inject emoji text. The MutationObserver should catch and replace them.</p>
+    <button onclick="injectDynamic()">Inject Dynamic Content</button>
+    <div id="dynamic-target"></div>
+    <script>
+      let counter = 0;
+      const phrases = [
+        "Dynamically added: :absolute_cinema: :1up: :alarm:",
+        "Another one: :access-denied: Oops! :ahhhhhhhhh:",
+        "Status update: :200: All systems go :1a:",
+        "Agent reporting in :agent: with :ai_drunk: vibes",
+        ":alert: Deploy alert! :500: :ah_shit_here_we_go_again:",
+        "Coffee time :aero_press: then :afk: for lunch",
+        ":all_the_things: Let's refactor :all_the_things:",
+        "Back-to-back: :1up::404::alarm::alert: done!",
+      ];
+      function injectDynamic() {
+        const target = document.getElementById("dynamic-target");
+        const p = document.createElement("p");
+        p.textContent = phrases[counter % phrases.length];
+        p.style.marginBottom = "0.4rem";
+        target.appendChild(p);
+        counter++;
+      }
+    </script>
+  </section>
+
+</div>
+</body>
+</html>

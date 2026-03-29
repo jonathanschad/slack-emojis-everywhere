@@ -1,0 +1,9 @@
+node_modules/
+.output/
+.wxt/
+dist/
+
+# Environment files with secrets
+.env
+.env.local
+.dev.vars

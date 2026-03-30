@@ -1,13 +1,24 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import type { ExtensionStatus } from "@/lib/types";
-import SignIn from "./components/SignIn";
-import Dashboard from "./components/Dashboard";
+import SourceList from "./components/SourceList";
+import AddSource from "./components/AddSource";
+import ZipImport from "./components/ZipImport";
+
+const isImportMode = new URLSearchParams(window.location.search).get("mode") === "import";
 
 export default function App() {
+  if (isImportMode) {
+    return <ZipImport />;
+  }
+
+  return <PopupMain />;
+}
+
+function PopupMain() {
   const [status, setStatus] = useState<ExtensionStatus | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const refreshStatus = async () => {
+  const refreshStatus = useCallback(async () => {
     try {
       const response = await browser.runtime.sendMessage({
         type: "GET_STATUS",
@@ -20,11 +31,11 @@ export default function App() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     refreshStatus();
-  }, []);
+  }, [refreshStatus]);
 
   if (loading) {
     return (
@@ -34,9 +45,38 @@ export default function App() {
     );
   }
 
-  if (!status?.authenticated) {
-    return <SignIn onComplete={refreshStatus} />;
-  }
+  const hasSources = (status?.sources.length ?? 0) > 0;
 
-  return <Dashboard status={status} onStatusChange={refreshStatus} />;
+  return (
+    <div className="p-4 space-y-4">
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-lg font-bold text-gray-900">
+            Emoji Everywhere
+          </h1>
+          {hasSources && (
+            <p className="text-xs text-gray-400 mt-0.5">
+              {status!.totalEmojiCount} emojis from{" "}
+              {status!.sources.length} source{status!.sources.length > 1 ? "s" : ""}
+            </p>
+          )}
+        </div>
+        {hasSources && <AddSource onStatusChange={refreshStatus} />}
+      </div>
+
+      {hasSources ? (
+        <SourceList
+          sources={status!.sources}
+          onStatusChange={refreshStatus}
+        />
+      ) : (
+        <div className="pt-2">
+          <p className="text-sm text-gray-500 mb-3">
+            Add an emoji source to get started.
+          </p>
+          <AddSource onStatusChange={refreshStatus} inline />
+        </div>
+      )}
+    </div>
+  );
 }

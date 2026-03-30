@@ -1,81 +1,93 @@
 import { storage } from "#imports";
-import type { EmojiMap, Settings } from "./types";
+import type { EmojiMap, EmojiSource, Settings } from "./types";
 import { DEFAULT_SETTINGS } from "./types";
 
 const keys = {
-  token: storage.defineItem<string | null>("local:slackToken", {
-    fallback: null,
+  sources: storage.defineItem<EmojiSource[]>("local:emojiSources", {
+    fallback: [],
   }),
-  teamName: storage.defineItem<string | null>("local:teamName", {
-    fallback: null,
-  }),
-  emojis: storage.defineItem<EmojiMap>("local:emojis", {
+  mergedEmojis: storage.defineItem<EmojiMap>("local:mergedEmojis", {
     fallback: {},
-  }),
-  lastRefresh: storage.defineItem<number | null>("local:lastRefresh", {
-    fallback: null,
   }),
   settings: storage.defineItem<Settings>("local:settings", {
     fallback: DEFAULT_SETTINGS,
   }),
 };
 
-export async function getToken() {
-  return keys.token.getValue();
+function buildMergedEmojis(sources: EmojiSource[]): EmojiMap {
+  const merged: EmojiMap = {};
+  for (const source of sources) {
+    Object.assign(merged, source.emojis);
+  }
+  return merged;
 }
 
-export async function setToken(token: string, teamName: string | null) {
-  await Promise.all([
-    keys.token.setValue(token),
-    keys.teamName.setValue(teamName),
-  ]);
+async function persistMerged(sources: EmojiSource[]): Promise<void> {
+  await keys.mergedEmojis.setValue(buildMergedEmojis(sources));
 }
 
-export async function getEmojis(): Promise<EmojiMap> {
-  return keys.emojis.getValue();
+export async function getSources(): Promise<EmojiSource[]> {
+  return keys.sources.getValue();
 }
 
-export async function setEmojis(emojis: EmojiMap) {
-  await Promise.all([
-    keys.emojis.setValue(emojis),
-    keys.lastRefresh.setValue(Date.now()),
-  ]);
+export async function getSource(id: string): Promise<EmojiSource | undefined> {
+  const sources = await getSources();
+  return sources.find((s) => s.id === id);
+}
+
+export async function addSource(source: EmojiSource): Promise<void> {
+  const sources = await getSources();
+  sources.push(source);
+  await keys.sources.setValue(sources);
+  await persistMerged(sources);
+}
+
+export async function updateSource(
+  id: string,
+  updater: (source: EmojiSource) => EmojiSource,
+): Promise<void> {
+  const sources = await getSources();
+  const idx = sources.findIndex((s) => s.id === id);
+  if (idx === -1) return;
+  sources[idx] = updater(sources[idx]);
+  await keys.sources.setValue(sources);
+  await persistMerged(sources);
+}
+
+export async function removeSource(id: string): Promise<void> {
+  const sources = await getSources();
+  const filtered = sources.filter((s) => s.id !== id);
+  await keys.sources.setValue(filtered);
+  await persistMerged(filtered);
+}
+
+export async function getMergedEmojis(): Promise<EmojiMap> {
+  return keys.mergedEmojis.getValue();
 }
 
 export async function getSettings(): Promise<Settings> {
   return keys.settings.getValue();
 }
 
-export async function updateSettings(partial: Partial<Settings>) {
+export async function updateSettings(partial: Partial<Settings>): Promise<void> {
   const current = await getSettings();
   await keys.settings.setValue({ ...current, ...partial });
 }
 
-export async function getLastRefresh() {
-  return keys.lastRefresh.getValue();
-}
-
-export async function getTeamName() {
-  return keys.teamName.getValue();
-}
-
-export async function clearAll() {
-  await Promise.all([
-    keys.token.setValue(null),
-    keys.teamName.setValue(null),
-    keys.emojis.setValue({}),
-    keys.lastRefresh.setValue(null),
-  ]);
-}
-
-export function watchEmojis(
+export function watchMergedEmojis(
   callback: (newVal: EmojiMap, oldVal: EmojiMap) => void,
-) {
-  return keys.emojis.watch(callback);
+): () => void {
+  return keys.mergedEmojis.watch(callback);
 }
 
 export function watchSettings(
   callback: (newVal: Settings, oldVal: Settings) => void,
-) {
+): () => void {
   return keys.settings.watch(callback);
+}
+
+export function watchSources(
+  callback: (newVal: EmojiSource[], oldVal: EmojiSource[]) => void,
+): () => void {
+  return keys.sources.watch(callback);
 }

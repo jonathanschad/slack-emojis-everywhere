@@ -26,6 +26,12 @@
     "wxt": "^0.20.20"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild", "sharp"]
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "sharp"
+    ]
+  },
+  "dependencies": {
+    "@zip.js/zip.js": "^2.8.23"
   }
 }

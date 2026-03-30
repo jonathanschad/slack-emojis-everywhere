@@ -1,4 +1,4 @@
-import { getEmojis, getSettings, watchEmojis, watchSettings } from "@/lib/storage";
+import { getMergedEmojis, getSettings, watchMergedEmojis, watchSettings } from "@/lib/storage";
 import { scanAndReplace, createObserver } from "@/lib/emoji-replacer";
 import { initAutocomplete, updateEmojis } from "@/lib/emoji-autocomplete";
 import type { EmojiMap, Settings } from "@/lib/types";
@@ -8,7 +8,7 @@ export default defineContentScript({
   runAt: "document_idle",
 
   async main() {
-    let emojis: EmojiMap = await getEmojis();
+    let emojis: EmojiMap = await getMergedEmojis();
     let settings: Settings = await getSettings();
     let observer: MutationObserver | null = null;
     let teardownAutocomplete: (() => void) | null = null;
@@ -51,7 +51,7 @@ export default defineContentScript({
 
     start();
 
-    watchEmojis((newEmojis) => {
+    watchMergedEmojis((newEmojis) => {
       emojis = newEmojis;
       updateEmojis(newEmojis);
       restart();

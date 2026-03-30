@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { getEmojis } from "@/lib/storage";
+import { getSource } from "@/lib/storage";
 import { resolveEmoji } from "@/lib/slack";
 import { loadCachedImages } from "@/lib/emoji-cache";
 import { searchEmojis } from "@/lib/emoji-search";
@@ -7,7 +7,11 @@ import type { EmojiMap } from "@/lib/types";
 
 const BATCH_SIZE = 100;
 
-export default function EmojiGrid() {
+interface Props {
+  sourceId: string;
+}
+
+export default function EmojiGrid({ sourceId }: Props) {
   const [emojis, setEmojis] = useState<EmojiMap>({});
   const [search, setSearch] = useState("");
   const [visibleCount, setVisibleCount] = useState(BATCH_SIZE);
@@ -16,8 +20,10 @@ export default function EmojiGrid() {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    getEmojis().then(setEmojis);
-  }, []);
+    getSource(sourceId).then((source) => {
+      if (source) setEmojis(source.emojis);
+    });
+  }, [sourceId]);
 
   const allResolved = useMemo(() => {
     const results: { name: string; url: string }[] = [];
@@ -79,8 +85,8 @@ export default function EmojiGrid() {
 
   if (Object.keys(emojis).length === 0) {
     return (
-      <div className="text-center text-sm text-gray-400 py-4">
-        No emojis loaded yet
+      <div className="text-center text-xs text-gray-400 py-2">
+        No emojis in this source
       </div>
     );
   }
@@ -93,13 +99,13 @@ export default function EmojiGrid() {
         type="text"
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        placeholder={`Search ${filteredEntries.length} emojis...`}
-        className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+        placeholder={`Search ${allResolved.length} emojis...`}
+        className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
       />
 
       <div
         ref={scrollRef}
-        className="grid grid-cols-8 gap-1 max-h-48 overflow-y-auto p-1"
+        className="grid grid-cols-8 gap-1 max-h-36 overflow-y-auto p-1"
       >
         {visibleEntries.map(({ name, url }) => {
           const src = cachedSrcs[url] || url;
@@ -107,13 +113,13 @@ export default function EmojiGrid() {
           return (
             <button
               key={name}
-              className="w-9 h-9 flex items-center justify-center rounded hover:bg-gray-100 transition-colors group relative cursor-pointer"
+              className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 transition-colors group relative cursor-pointer"
               title={`:${name}:`}
             >
               <img
                 src={src}
                 alt={`:${name}:`}
-                className="w-6 h-6"
+                className="w-5 h-5"
                 loading="lazy"
               />
             </button>
@@ -124,7 +130,7 @@ export default function EmojiGrid() {
       </div>
 
       {filteredEntries.length === 0 && search && (
-        <p className="text-center text-xs text-gray-400 py-2">
+        <p className="text-center text-xs text-gray-400 py-1">
           No emojis matching &ldquo;{search}&rdquo;
         </p>
       )}

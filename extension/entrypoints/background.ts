@@ -1,18 +1,31 @@
 import {
-  getToken,
-  setToken,
-  getEmojis,
-  setEmojis,
-  getLastRefresh,
-  getTeamName,
+  getSources,
+  getSource,
+  addSource,
+  updateSource,
+  removeSource,
   getSettings,
-  clearAll,
 } from "@/lib/storage";
 import { getAuthorizeUrl, exchangeCodeForToken, fetchEmojis } from "@/lib/slack";
 import { preCacheImages, clearImageCache } from "@/lib/emoji-cache";
-import type { ExtensionStatus } from "@/lib/types";
+import type { EmojiSource, ExtensionStatus, SlackSource, SourceSummary, EmojiMap } from "@/lib/types";
 
 const ALARM_NAME = "refresh-emojis";
+
+function generateId(): string {
+  return crypto.randomUUID();
+}
+
+function summarizeSource(source: EmojiSource): SourceSummary {
+  return {
+    id: source.id,
+    type: source.type,
+    name: source.name,
+    emojiCount: Object.keys(source.emojis).length,
+    lastRefresh: source.type === "slack" ? source.lastRefresh : source.addedAt,
+    error: source.type === "slack" ? source.error : null,
+  };
+}
 
 async function startOAuthFlow(): Promise<{ success: boolean; error?: string }> {
   try {
@@ -41,8 +54,31 @@ async function startOAuthFlow(): Promise<{ success: boolean; error?: string }> {
       redirectUri,
     );
 
-    await setToken(accessToken, teamName);
-    await refreshEmojis();
+    const existing = (await getSources()).find(
+      (s) => s.type === "slack" && s.teamName === teamName,
+    );
+    if (existing) {
+      await updateSource(existing.id, (s) => ({
+        ...s,
+        token: accessToken,
+        teamName: teamName ?? (s as SlackSource).teamName,
+        error: null,
+      }) as EmojiSource);
+      await refreshSourceEmojis(existing.id);
+    } else {
+      const source: SlackSource = {
+        type: "slack",
+        id: generateId(),
+        name: teamName ?? "Slack Workspace",
+        teamName: teamName ?? null,
+        token: accessToken,
+        emojis: {},
+        lastRefresh: null,
+        error: null,
+      };
+      await addSource(source);
+      await refreshSourceEmojis(source.id);
+    }
 
     return { success: true };
   } catch (err) {
@@ -51,34 +87,65 @@ async function startOAuthFlow(): Promise<{ success: boolean; error?: string }> {
   }
 }
 
-async function refreshEmojis(): Promise<void> {
-  const token = await getToken();
-  if (!token) return;
+async function refreshSourceEmojis(sourceId: string): Promise<void> {
+  const source = await getSource(sourceId);
+  if (!source || source.type !== "slack") return;
 
-  const emojis = await fetchEmojis(token);
-  await setEmojis(emojis);
+  try {
+    const emojis = await fetchEmojis(source.token);
+    await updateSource(sourceId, (s) => ({
+      ...s,
+      emojis,
+      lastRefresh: Date.now(),
+      error: null,
+    }) as EmojiSource);
+
+    preCacheImages(emojis).catch(() => {});
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    await updateSource(sourceId, (s) => ({
+      ...s,
+      error: message,
+    }) as EmojiSource);
+    throw err;
+  }
+}
+
+async function refreshAllSlackSources(): Promise<void> {
+  const sources = await getSources();
+  const slackSources = sources.filter((s) => s.type === "slack");
+
+  await Promise.allSettled(
+    slackSources.map((s) => refreshSourceEmojis(s.id)),
+  );
+}
+
+async function importZip(name: string, emojis: EmojiMap): Promise<void> {
+  await addSource({
+    type: "zip",
+    id: generateId(),
+    name,
+    emojis,
+    addedAt: Date.now(),
+  });
 
   preCacheImages(emojis).catch(() => {});
 }
 
 async function getStatus(): Promise<ExtensionStatus> {
-  const [token, teamName, emojis, lastRefresh] = await Promise.all([
-    getToken(),
-    getTeamName(),
-    getEmojis(),
-    getLastRefresh(),
-  ]);
+  const sources = await getSources();
+  let totalEmojiCount = 0;
 
-  return {
-    authenticated: token !== null,
-    teamName,
-    emojiCount: Object.keys(emojis).length,
-    lastRefresh,
-    error: null,
-  };
+  const summaries = sources.map((s) => {
+    const summary = summarizeSource(s);
+    totalEmojiCount += summary.emojiCount;
+    return summary;
+  });
+
+  return { sources: summaries, totalEmojiCount };
 }
 
-async function setupAlarm() {
+async function setupAlarm(): Promise<void> {
   const settings = await getSettings();
   await browser.alarms.clear(ALARM_NAME);
   await browser.alarms.create(ALARM_NAME, {
@@ -90,25 +157,13 @@ export default defineBackground(() => {
   console.log("Redirect URL:", browser.identity.getRedirectURL());
 
   browser.runtime.onInstalled.addListener(async () => {
-    const token = await getToken();
-    if (token) {
-      try {
-        await refreshEmojis();
-      } catch {
-        // token may be expired, user can re-authenticate
-      }
-    }
+    await refreshAllSlackSources().catch(() => {});
     await setupAlarm();
   });
 
   browser.alarms.onAlarm.addListener(async (alarm) => {
     if (alarm.name !== ALARM_NAME) return;
-
-    try {
-      await refreshEmojis();
-    } catch {
-      // silent fail on auto-refresh, user can manually retry
-    }
+    await refreshAllSlackSources().catch(() => {});
   });
 
   browser.runtime.onMessage.addListener((message, _sender, sendResponse) => {
@@ -122,7 +177,18 @@ export default defineBackground(() => {
         return true;
 
       case "FETCH_EMOJIS":
-        refreshEmojis()
+        refreshSourceEmojis(message.sourceId)
+          .then(() => sendResponse({ success: true }))
+          .catch((err) =>
+            sendResponse({
+              success: false,
+              error: err instanceof Error ? err.message : "Unknown error",
+            }),
+          );
+        return true;
+
+      case "FETCH_ALL_EMOJIS":
+        refreshAllSlackSources()
           .then(() => sendResponse({ success: true }))
           .catch((err) =>
             sendResponse({
@@ -138,11 +204,21 @@ export default defineBackground(() => {
         });
         return true;
 
-      case "DISCONNECT":
-        Promise.all([clearAll(), clearImageCache()]).then(() => {
-          browser.alarms.clear(ALARM_NAME);
+      case "REMOVE_SOURCE":
+        removeSource(message.sourceId).then(() => {
           sendResponse({ success: true });
         });
+        return true;
+
+      case "IMPORT_ZIP":
+        importZip(message.name, message.emojis)
+          .then(() => sendResponse({ success: true }))
+          .catch((err) =>
+            sendResponse({
+              success: false,
+              error: err instanceof Error ? err.message : "Unknown error",
+            }),
+          );
         return true;
     }
 

@@ -20,26 +20,23 @@ Built with WXT, React, TypeScript, and Tailwind CSS. Distributed internally via 
 │ │ Popup UI        │──│ Background   │──│ Content Script │    │
 │ │ (React)         │ │ (Service     │ │ (DOM scanner)  │     │
 │ │ Source manager  │ │  Worker)     │ │                │     │
-│ └─────────────────┘ └──────┬───────┘ └───────┬───────┘     │
-│                            │                 │              │
-│         browser.storage.local                │              │
-│         (sources[], mergedEmojis, settings)  │              │
-└──────────────────────────┬───────────────────┘              │
-                           │                                  │
-           ┌───────────────┴───────────────┐                  │
-           │ Slack sources                 │                  │
-           │                               │                  │
-           │   │ emoji.list per workspace  │                  │
-           ▼   ▼                           │                  │
-┌────────────────────┐                     │                  │
-│ OAuth Proxy        │  ZIP sources:       │                  │
-│ (Cloudflare Worker)│  imported locally   │                  │
-└────────┬───────────┘  via file picker    │                  │
-         │ oauth.v2.access                 │                  │
-         ▼                                 │                  │
-    ┌──────────┐                           │                  │
-    │ Slack API│                           │                  │
-    └──────────┘                           │                  │
+│ └─────────────────┘ └──────┬───────┘ └───────┬───────┘      │
+│                            │                 │               │
+│        browser.storage.local                 │               │
+│        (sources[], mergedEmojis, settings)   │               │
+└────────────────────────────┬─────────────────┘               │
+                             │                                 │
+                    ┌────────┴────────┐                        │
+                    │ Slack OAuth     │                        │
+                    │ (PKCE, direct)  │                        │
+                    │ No proxy needed │   ZIP sources:         │
+                    └────────┬────────┘   imported locally     │
+                             │            via file picker      │
+                    ┌────────┴────────┐                        │
+                    │ Slack API       │                        │
+                    │ v2_user/auth +  │                        │
+                    │ emoji.list      │                        │
+                    └─────────────────┘
 ```
 
 ### Multi-Source Data Model
@@ -57,38 +54,35 @@ script. The popup UI displays emojis grouped by source.
 
 ### Key Components
 
-- **Extension Popup** (`extension/entrypoints/popup/`): React UI with a
-  source management hub. Shows all connected sources with per-source emoji
-  grids. "Add source" section offers Slack sign-in and ZIP import.
-- **Background Script** (`extension/entrypoints/background.ts`): Service worker
-  that handles OAuth for Slack workspaces, ZIP imports, per-source refresh,
+- **Popup** (`entrypoints/popup/`): React UI with a source management hub.
+  Shows all connected sources with per-source emoji grids. "Add source"
+  section offers Slack sign-in and ZIP import.
+- **Background Script** (`entrypoints/background.ts`): Service worker that
+  handles PKCE OAuth for Slack workspaces, ZIP imports, per-source refresh,
   source removal, and auto-refresh alarms for all Slack sources.
-- **OAuth Proxy** (`oauth-proxy/`): Cloudflare Worker that holds the
-  Slack client ID and secret. Provides `/authorize` (builds the OAuth URL)
-  and `/token` (exchanges code for token). Validates redirect URIs against
-  an allowlist and enforces request timestamps.
-- **Content Script** (`extension/entrypoints/content.ts`): Runs on all pages.
-  Uses the merged emoji map from all sources. TreeWalker finds `:emoji_name:`
-  text nodes and replaces them with `<img>` tags. MutationObserver catches
+- **Content Script** (`entrypoints/content.ts`): Runs on all pages. Uses the
+  merged emoji map from all sources. TreeWalker finds `:emoji_name:` text
+  nodes and replaces them with `<img>` tags. MutationObserver catches
   dynamically added content.
-- **Lib** (`extension/lib/`): Shared modules -- Slack API client, typed
+- **Lib** (`lib/`): Shared modules -- Slack API client with PKCE, typed
   storage wrapper, emoji replacer logic, autocomplete, search, image cache.
 
-### Authentication Flow
+### Authentication Flow (PKCE)
 
-The Slack client ID and secret never leave the server. The extension has
-no Slack credentials -- it only knows the proxy URL.
+The extension authenticates directly with Slack using PKCE (Proof Key for
+Code Exchange). No proxy or client secret is needed.
 
-1. Extension asks proxy for the OAuth URL: `GET /authorize?redirect_uri=...`
-2. Proxy validates the redirect URI against its allowlist, builds the
-   Slack authorize URL with its client ID, returns it
+1. Extension generates a random `code_verifier` and derives a
+   `code_challenge` (SHA-256, base64url-encoded)
+2. Extension builds the Slack authorize URL:
+   `https://slack.com/oauth/v2_user/authorize?client_id=...&scope=emoji:read&code_challenge=...&code_challenge_method=S256&redirect_uri=...`
 3. Extension opens the URL via `browser.identity.launchWebAuthFlow()`
 4. User authorizes on Slack; Slack redirects back with an authorization code
 5. `launchWebAuthFlow` intercepts the redirect and returns the response URL
-6. Extension sends the code to the proxy: `POST /token { code, redirect_uri, timestamp }`
-7. Proxy validates the redirect URI and timestamp (5-minute window),
-   then calls `oauth.v2.access` with its client secret
-8. Proxy returns the Slack response; extension stores the source and fetches emojis
+6. Extension calls `oauth.v2.user.access` directly with the `code` and
+   `code_verifier` (no client secret)
+7. Slack verifies the code_verifier matches the original code_challenge
+8. Extension stores the source and fetches emojis
 
 If the same Slack team is re-authenticated, the existing source is updated
 rather than creating a duplicate.
@@ -103,78 +97,62 @@ The Firefox ID is pinned via `browser_specific_settings.gecko.id`.
 
 ## Tech Stack
 
-| Tool | Purpose |
-|-------------|---------------------------------------|
-| WXT 0.20.x | Extension framework (Vite, cross-browser) |
-| React 19 | Popup UI |
-| TypeScript | Type safety throughout |
-| Tailwind v4 | Styling |
-| pnpm | Package manager |
-| Cloudflare Workers | OAuth proxy (token exchange) |
-| @zip.js/zip.js | ZIP file reading for emoji imports |
+| Tool        | Purpose                                    |
+|-------------|--------------------------------------------|
+| WXT 0.20.x  | Extension framework (Vite, cross-browser)  |
+| React 19    | Popup UI                                   |
+| TypeScript  | Type safety throughout                     |
+| Tailwind v4 | Styling                                    |
+| pnpm        | Package manager                            |
+| @zip.js/zip.js | ZIP file reading for emoji imports      |
 
 ## Project Structure
 
 ```
-extension/                     -- Browser extension (WXT + React)
-  entrypoints/
-    background.ts              -- Service worker: multi-source management, OAuth, alarms
-    content.ts                 -- Content script: DOM emoji replacement (merged map)
-    popup/
-      index.html               -- Popup HTML shell
-      main.tsx                 -- React mount
-      App.tsx                  -- Root component: source management hub
-      style.css                -- Tailwind entry
-      components/
-        SourceList.tsx         -- Expandable cards per source (refresh, remove, emoji grid)
-        AddSource.tsx          -- "Add source" section: Slack sign-in + ZIP import
-        EmojiGrid.tsx          -- Searchable emoji grid for a single source
-  lib/
-    types.ts                   -- EmojiSource union, message types, settings
-    storage.ts                 -- Multi-source storage (sources[], mergedEmojis)
-    slack.ts                   -- Slack OAuth + emoji.list API client
-    emoji-replacer.ts          -- TreeWalker + MutationObserver DOM replacement
-    emoji-autocomplete.ts      -- Inline autocomplete for :emoji: in text fields
-    emoji-search.ts            -- Fuzzy emoji search with scoring
-    emoji-cache.ts             -- Cache API image pre-caching
-  assets/
-    icon.svg                   -- Extension icon
-  wxt.config.ts                -- WXT configuration
-  .env.example                 -- Extension env template (just the proxy URL)
-  package.json                 -- Extension dependencies
-
-oauth-proxy/                   -- Cloudflare Worker (token exchange)
-  src/index.ts                 -- /authorize + /token endpoints, redirect URI allowlist
-  wrangler.toml                -- Worker config (allowed redirect URIs)
-  .dev.vars.example            -- Secrets template for local dev
-  package.json                 -- Worker dependencies
+entrypoints/
+  background.ts             -- Service worker: PKCE OAuth, multi-source management, alarms
+  content.ts                -- Content script: DOM emoji replacement (merged map)
+  popup/
+    index.html              -- Popup HTML shell
+    main.tsx                -- React mount
+    App.tsx                 -- Root component: source management hub
+    style.css               -- Tailwind entry
+    components/
+      SourceList.tsx        -- Expandable cards per source (refresh, remove, emoji grid)
+      AddSource.tsx         -- "Add source" section: Slack sign-in + ZIP import
+      EmojiGrid.tsx         -- Searchable emoji grid for a single source
+      ZipImport.tsx         -- ZIP file import popup
+lib/
+  types.ts                  -- EmojiSource union, message types, settings
+  storage.ts                -- Multi-source storage (sources[], mergedEmojis)
+  slack.ts                  -- PKCE helpers + Slack API client (no proxy)
+  emoji-replacer.ts         -- TreeWalker + MutationObserver DOM replacement
+  emoji-autocomplete.ts     -- Inline autocomplete for :emoji: in text fields
+  emoji-search.ts           -- Fuzzy emoji search with scoring
+  emoji-cache.ts            -- Cache API image pre-caching
+assets/
+  icon.svg                  -- Extension icon
+wxt.config.ts               -- WXT configuration
+.env.example                -- Env template (client ID + dev server port)
+package.json                -- Dependencies
 ```
 
 ## Development
 
 ```bash
-# OAuth proxy (Terminal 1)
-cd oauth-proxy
 pnpm install
-cp .dev.vars.example .dev.vars  # fill in Slack client ID + secret
-pnpm dev                        # runs on http://localhost:8787
-
-# Extension (Terminal 2)
-cd extension
-pnpm install
-cp .env.example .env            # set proxy URL (default: localhost:8787)
-pnpm dev                        # Chrome dev mode with HMR
-pnpm dev:firefox                # Firefox dev mode
+cp .env.example .env        # fill in your Slack app's client ID
+pnpm dev                    # Chrome dev mode with HMR
+pnpm dev:firefox            # Firefox dev mode
 ```
 
 ## Building for Distribution
 
 ```bash
-cd extension
-pnpm build          # Production build for Chrome
-pnpm build:firefox  # Production build for Firefox
-pnpm zip            # Zip for Chrome
-pnpm zip:firefox    # Zip for Firefox
+pnpm build                  # Production build for Chrome
+pnpm build:firefox          # Production build for Firefox
+pnpm zip                    # Zip for Chrome
+pnpm zip:firefox            # Zip for Firefox
 ```
 
 ## Conventions
@@ -188,12 +166,10 @@ pnpm zip:firefox    # Zip for Firefox
   callbacks and avoid layout thrashing.
 - All Slack sources auto-refresh every 30 minutes via `browser.alarms`.
 - Alias emojis (`alias:other_name`) are resolved recursively with a depth limit.
-- No Slack credentials are in the extension bundle. The only extension
-  env var is the OAuth proxy URL.
-- The proxy holds the Slack client ID and secret, and validates redirect
-  URIs against a hardcoded allowlist.
-- Token exchange requests include a timestamp; the proxy rejects anything
-  older than 5 minutes.
+- OAuth uses PKCE (Proof Key for Code Exchange) so no client secret is needed
+  and no server-side proxy is required. The Slack app must have PKCE enabled.
+- The only env var is the Slack client ID, which is safe to include in the
+  extension bundle (public clients are designed to expose the client ID).
 - ZIP imports read image files from the archive, convert them to data URLs,
   and use the filename (without extension) as the emoji name.
 - Re-authenticating an existing Slack team updates the source in-place

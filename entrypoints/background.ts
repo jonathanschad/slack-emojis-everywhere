@@ -6,7 +6,13 @@ import {
   removeSource,
   getSettings,
 } from "@/lib/storage";
-import { getAuthorizeUrl, exchangeCodeForToken, fetchEmojis } from "@/lib/slack";
+import {
+  generateCodeVerifier,
+  generateCodeChallenge,
+  getAuthorizeUrl,
+  exchangeCodeForToken,
+  fetchEmojis,
+} from "@/lib/slack";
 import { preCacheImages, clearImageCache } from "@/lib/emoji-cache";
 import type { EmojiSource, ExtensionStatus, SlackSource, SourceSummary, EmojiMap } from "@/lib/types";
 
@@ -30,7 +36,9 @@ function summarizeSource(source: EmojiSource): SourceSummary {
 async function startOAuthFlow(): Promise<{ success: boolean; error?: string }> {
   try {
     const redirectUri = browser.identity.getRedirectURL();
-    const authUrl = await getAuthorizeUrl(redirectUri);
+    const codeVerifier = generateCodeVerifier();
+    const codeChallenge = await generateCodeChallenge(codeVerifier);
+    const authUrl = getAuthorizeUrl(redirectUri, codeChallenge);
 
     const responseUrl = await browser.identity.launchWebAuthFlow({
       url: authUrl,
@@ -52,6 +60,7 @@ async function startOAuthFlow(): Promise<{ success: boolean; error?: string }> {
     const { accessToken, teamName } = await exchangeCodeForToken(
       code,
       redirectUri,
+      codeVerifier,
     );
 
     const existing = (await getSources()).find(

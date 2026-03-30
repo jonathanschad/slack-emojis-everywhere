@@ -1,14 +1,10 @@
 node_modules/
 
-# Extension build artifacts
-extension/.output/
-extension/.wxt/
-extension/dist/
-
-# Worker build artifacts
-oauth-proxy/.wrangler/
+# Build artifacts
+.output/
+.wxt/
+dist/
 
 # Environment files with secrets
 .env
 .env.local
-.dev.vars

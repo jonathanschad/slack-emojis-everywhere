@@ -1,8 +1,9 @@
 {
   "name": "slack-emoji-everywhere",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "Browser extension that replaces :custom_emoji: text with Slack custom emojis",
   "private": true,
+  "license": "AGPL-3.0-only",
   "type": "module",
   "scripts": {
     "dev": "wxt",
@@ -11,7 +12,8 @@
     "build:firefox": "wxt build -b firefox",
     "zip": "wxt zip",
     "zip:firefox": "wxt zip -b firefox",
-    "postinstall": "wxt prepare"
+    "postinstall": "wxt prepare",
+    "release": "node release.js"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.2.2",

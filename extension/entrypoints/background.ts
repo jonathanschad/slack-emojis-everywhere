@@ -8,7 +8,7 @@ import {
   getSettings,
   clearAll,
 } from "@/lib/storage";
-import { buildOAuthUrl, exchangeCodeForToken, fetchEmojis } from "@/lib/slack";
+import { getAuthorizeUrl, exchangeCodeForToken, fetchEmojis } from "@/lib/slack";
 import { preCacheImages, clearImageCache } from "@/lib/emoji-cache";
 import type { ExtensionStatus } from "@/lib/types";
 
@@ -17,7 +17,7 @@ const ALARM_NAME = "refresh-emojis";
 async function startOAuthFlow(): Promise<{ success: boolean; error?: string }> {
   try {
     const redirectUri = browser.identity.getRedirectURL();
-    const authUrl = buildOAuthUrl(redirectUri);
+    const authUrl = await getAuthorizeUrl(redirectUri);
 
     const responseUrl = await browser.identity.launchWebAuthFlow({
       url: authUrl,

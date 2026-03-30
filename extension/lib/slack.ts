@@ -1,35 +1,50 @@
 import type { EmojiMap } from "./types";
 
-const SLACK_CLIENT_ID = import.meta.env.VITE_SLACK_CLIENT_ID;
-const SLACK_CLIENT_SECRET = import.meta.env.VITE_SLACK_CLIENT_SECRET;
+const OAUTH_PROXY_URL = import.meta.env.VITE_OAUTH_PROXY_URL;
 const SLACK_API = "https://slack.com/api";
 
-export function buildOAuthUrl(redirectUri: string): string {
-  const params = new URLSearchParams({
-    client_id: SLACK_CLIENT_ID,
-    user_scope: "emoji:read",
-    redirect_uri: redirectUri,
-  });
-  return `https://slack.com/oauth/v2/authorize?${params}`;
+export async function getAuthorizeUrl(redirectUri: string): Promise<string> {
+  const params = new URLSearchParams({ redirect_uri: redirectUri });
+  const res = await fetch(`${OAUTH_PROXY_URL}/authorize?${params}`);
+
+  if (!res.ok) {
+    const err = (await res.json().catch(() => null)) as {
+      error?: string;
+    } | null;
+    throw new Error(
+      `OAuth proxy error: ${err?.error ?? `HTTP ${res.status}`}`,
+    );
+  }
+
+  const data = (await res.json()) as { ok: boolean; authorize_url?: string; error?: string };
+  if (!data.ok || !data.authorize_url) {
+    throw new Error(`Failed to get authorize URL: ${data.error ?? "unknown"}`);
+  }
+
+  return data.authorize_url;
 }
 
 export async function exchangeCodeForToken(
   code: string,
   redirectUri: string,
 ): Promise<{ accessToken: string; teamName?: string }> {
-  const res = await fetch(`${SLACK_API}/oauth.v2.access`, {
+  const res = await fetch(`${OAUTH_PROXY_URL}/token`, {
     method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id: SLACK_CLIENT_ID,
-      client_secret: SLACK_CLIENT_SECRET,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
       code,
       redirect_uri: redirectUri,
+      timestamp: Date.now(),
     }),
   });
 
   if (!res.ok) {
-    throw new Error(`Slack returned ${res.status}`);
+    const err = (await res.json().catch(() => null)) as {
+      error?: string;
+    } | null;
+    throw new Error(
+      `OAuth proxy error: ${err?.error ?? `HTTP ${res.status}`}`,
+    );
   }
 
   const data = (await res.json()) as {

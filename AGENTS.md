@@ -23,46 +23,57 @@ Built with WXT, React, TypeScript, and Tailwind CSS. Distributed internally via 
 │               (token, emojis, settings)  │            │
 └────────────────────────┬─────────────────┘            │
                          │                              │
-                         │ oauth.v2.access              │
-                         │ emoji.list                   │
-                         ▼                              │
-                    ┌──────────┐                        │
-                    │ Slack API│                        │
-                    └──────────┘                        │
+                         │   │ emoji.list               │
+                         ▼   ▼                          │
+              ┌────────────────────┐                    │
+              │ OAuth Proxy        │                    │
+              │ (Cloudflare Worker)│                    │
+              └────────┬───────────┘                    │
+                       │ oauth.v2.access                │
+                       │ (with client secret)           │
+                       ▼                                │
+                  ┌──────────┐                          │
+                  │ Slack API│                          │
+                  └──────────┘                          │
 ```
 
 ### Key Components
 
-- **Extension Popup** (`entrypoints/popup/`): React UI with a
+- **Extension Popup** (`extension/entrypoints/popup/`): React UI with a
   "Sign in with Slack" button and a dashboard (emoji grid, sync status).
-- **Background Script** (`entrypoints/background.ts`): Service worker
-  that handles OAuth directly with Slack, fetches emojis from `emoji.list`,
+- **Background Script** (`extension/entrypoints/background.ts`): Service worker
+  that initiates OAuth (via the proxy), fetches emojis from `emoji.list`,
   manages auto-refresh alarms.
-- **Content Script** (`entrypoints/content.ts`): Runs on all pages.
+- **OAuth Proxy** (`oauth-proxy/`): Cloudflare Worker that holds the
+  Slack client ID and secret. Provides `/authorize` (builds the OAuth URL)
+  and `/token` (exchanges code for token). Validates redirect URIs against
+  an allowlist and enforces request timestamps.
+- **Content Script** (`extension/entrypoints/content.ts`): Runs on all pages.
   Uses TreeWalker to find `:emoji_name:` text nodes and replaces them with `<img>`
   tags. MutationObserver catches dynamically added content.
-- **Lib** (`lib/`): Shared modules -- Slack API client, typed
+- **Lib** (`extension/lib/`): Shared modules -- Slack API client, typed
   storage wrapper, emoji replacer logic.
 
 ### Authentication Flow
 
-The extension handles OAuth directly with Slack (no proxy server). Slack app
-credentials are embedded at build time via `VITE_SLACK_CLIENT_ID` and
-`VITE_SLACK_CLIENT_SECRET` env vars. This is acceptable because the extension
-is distributed internally within the org.
+The Slack client ID and secret never leave the server. The extension has
+no Slack credentials -- it only knows the proxy URL.
 
-1. Extension builds the Slack OAuth URL with its browser-specific redirect URI
-2. Extension opens the URL via `browser.identity.launchWebAuthFlow()`
-3. User authorizes on Slack; Slack redirects back with an authorization code
-4. `launchWebAuthFlow` intercepts the redirect and returns the response URL
-5. Extension extracts the code and exchanges it for a user token by calling
-   `oauth.v2.access` directly from the background service worker
-6. Extension stores the token and fetches emojis
+1. Extension asks proxy for the OAuth URL: `GET /authorize?redirect_uri=...`
+2. Proxy validates the redirect URI against its allowlist, builds the
+   Slack authorize URL with its client ID, returns it
+3. Extension opens the URL via `browser.identity.launchWebAuthFlow()`
+4. User authorizes on Slack; Slack redirects back with an authorization code
+5. `launchWebAuthFlow` intercepts the redirect and returns the response URL
+6. Extension sends the code to the proxy: `POST /token { code, redirect_uri, timestamp }`
+7. Proxy validates the redirect URI and timestamp (5-minute window),
+   then calls `oauth.v2.access` with its client secret
+8. Proxy returns the Slack response; extension stores the token and fetches emojis
 
 ### Redirect URIs (registered in Slack app config)
 
 - **Chrome**: `https://fkhaekiaendnoocnebpklhdpplpjfkkf.chromiumapp.org/`
-- **Firefox**: `https://slack-emoji-everywhere@extension.extensions.allizom.org/`
+- **Firefox**: `https://a408093059fe87bf3db6b5b6a50ca40a0e77e627.extensions.allizom.org/`
 
 The Chrome ID is pinned via the `key` field in the manifest.
 The Firefox ID is pinned via `browser_specific_settings.gecko.id`.
@@ -76,45 +87,63 @@ The Firefox ID is pinned via `browser_specific_settings.gecko.id`.
 | TypeScript | Type safety throughout |
 | Tailwind v4 | Styling |
 | pnpm | Package manager |
+| Cloudflare Workers | OAuth proxy (token exchange) |
 
 ## Project Structure
 
 ```
-entrypoints/
-  background.ts          -- Service worker: OAuth, alarms, emoji fetch
-  content.ts             -- Content script: DOM emoji replacement
-  popup/
-    index.html           -- Popup HTML shell
-    main.tsx             -- React mount
-    App.tsx              -- Root component (routes sign-in vs dashboard)
-    style.css            -- Tailwind entry
-    components/
-      SignIn.tsx          -- "Sign in with Slack" button
-      Dashboard.tsx      -- Connected state: status bar, refresh, disconnect
-      EmojiGrid.tsx      -- Searchable emoji preview grid
-lib/
-  types.ts               -- Shared TypeScript types and message definitions
-  storage.ts             -- Typed wrapper around WXT storage API
-  slack.ts               -- Slack OAuth + emoji.list API client
-  emoji-replacer.ts      -- TreeWalker + MutationObserver DOM replacement
-assets/
-  icon.svg               -- Extension icon
-wxt.config.ts            -- WXT configuration
-.env.example             -- VITE_SLACK_CLIENT_ID + VITE_SLACK_CLIENT_SECRET template
+extension/                     -- Browser extension (WXT + React)
+  entrypoints/
+    background.ts              -- Service worker: OAuth, alarms, emoji fetch
+    content.ts                 -- Content script: DOM emoji replacement
+    popup/
+      index.html               -- Popup HTML shell
+      main.tsx                 -- React mount
+      App.tsx                  -- Root component (routes sign-in vs dashboard)
+      style.css                -- Tailwind entry
+      components/
+        SignIn.tsx              -- "Sign in with Slack" button
+        Dashboard.tsx          -- Connected state: status bar, refresh, disconnect
+        EmojiGrid.tsx          -- Searchable emoji preview grid
+  lib/
+    types.ts                   -- Shared TypeScript types and message definitions
+    storage.ts                 -- Typed wrapper around WXT storage API
+    slack.ts                   -- Slack OAuth + emoji.list API client
+    emoji-replacer.ts          -- TreeWalker + MutationObserver DOM replacement
+  assets/
+    icon.svg                   -- Extension icon
+  wxt.config.ts                -- WXT configuration
+  .env.example                 -- Extension env template (just the proxy URL)
+  package.json                 -- Extension dependencies
+
+oauth-proxy/                   -- Cloudflare Worker (token exchange)
+  src/index.ts                 -- /authorize + /token endpoints, redirect URI allowlist
+  wrangler.toml                -- Worker config (allowed redirect URIs)
+  .dev.vars.example            -- Secrets template for local dev
+  package.json                 -- Worker dependencies
 ```
 
 ## Development
 
 ```bash
+# OAuth proxy (Terminal 1)
+cd oauth-proxy
 pnpm install
-cp .env.example .env  # fill in SLACK_CLIENT_ID + SLACK_CLIENT_SECRET
-pnpm dev              # Chrome dev mode with HMR
-pnpm dev:firefox      # Firefox dev mode
+cp .dev.vars.example .dev.vars  # fill in Slack client ID + secret
+pnpm dev                        # runs on http://localhost:8787
+
+# Extension (Terminal 2)
+cd extension
+pnpm install
+cp .env.example .env            # set proxy URL (default: localhost:8787)
+pnpm dev                        # Chrome dev mode with HMR
+pnpm dev:firefox                # Firefox dev mode
 ```
 
 ## Building for Distribution
 
 ```bash
+cd extension
 pnpm build          # Production build for Chrome
 pnpm build:firefox  # Production build for Firefox
 pnpm zip            # Zip for Chrome
@@ -131,8 +160,12 @@ pnpm zip:firefox    # Zip for Firefox
   callbacks and avoid layout thrashing.
 - Emojis auto-refresh every 30 minutes via `browser.alarms`.
 - Alias emojis (`alias:other_name`) are resolved recursively with a depth limit.
-- Slack credentials are baked in at build time; the extension is for internal
-  org distribution only.
+- No Slack credentials are in the extension bundle. The only extension
+  env var is the OAuth proxy URL.
+- The proxy holds the Slack client ID and secret, and validates redirect
+  URIs against a hardcoded allowlist.
+- Token exchange requests include a timestamp; the proxy rejects anything
+  older than 5 minutes.
 
 ## Manifest Permissions
 

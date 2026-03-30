@@ -28,9 +28,16 @@ export default defineConfig({
     browser_specific_settings: {
       gecko: {
         id: "slack-emoji-everywhere@extension",
+        data_collection_permissions: {
+          required: ["authenticationInfo"],
+          optional: [],
+        },
       },
     },
   }),
+  zip: {
+    includeSources: [".env.example"],
+  },
   vite: () => ({
     plugins: [tailwindcss()],
   }),

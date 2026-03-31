@@ -51,10 +51,12 @@ async function storeEmojis(
 
 async function startOAuthFlow(): Promise<{ success: boolean; error?: string }> {
   try {
+    const settings = await getSettings();
+    const clientId = settings.slackClientId || undefined;
     const redirectUri = browser.identity.getRedirectURL();
     const codeVerifier = generateCodeVerifier();
     const codeChallenge = await generateCodeChallenge(codeVerifier);
-    const authUrl = getAuthorizeUrl(redirectUri, codeChallenge);
+    const authUrl = getAuthorizeUrl(redirectUri, codeChallenge, clientId);
 
     const responseUrl = await browser.identity.launchWebAuthFlow({
       url: authUrl,
@@ -77,6 +79,7 @@ async function startOAuthFlow(): Promise<{ success: boolean; error?: string }> {
       code,
       redirectUri,
       codeVerifier,
+      clientId,
     );
 
     const existing = (await getSources()).find(

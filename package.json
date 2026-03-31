@@ -1,7 +1,7 @@
 {
-  "name": "slack-emoji-everywhere",
-  "version": "0.1.0",
-  "description": "Browser extension that replaces :custom_emoji: text with Slack custom emojis",
+  "name": "emoji-everywhere",
+  "version": "0.1.1",
+  "description": "Browser extension that replaces :custom_emoji: text with custom emojis from multiple sources",
   "private": true,
   "license": "AGPL-3.0-only",
   "type": "module",

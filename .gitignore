@@ -8,3 +8,5 @@ dist/
 # Environment files with secrets
 .env
 .env.local
+
+.DS_Store

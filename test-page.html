@@ -143,55 +143,55 @@
 <div class="container">
 
   <h1>Emoji Everywhere — Test Page</h1>
-  <p class="subtitle">Open this page with the extension active and signed in. All emoji codes below are real custom emojis from your workspace. Green-badge sections should get replaced; yellow-badge sections should stay as text.</p>
+  <p class="subtitle">Open this page with the extension active and a source loaded (try importing <code>assets/demo.zip</code>). Green-badge sections should get replaced; yellow-badge sections should stay as text.</p>
 
   <!-- ============================================ -->
   <section>
     <h2>Autocomplete Test <span class="badge replace">try it</span></h2>
     <p>Type <code>:</code> followed by a letter to trigger emoji suggestions. Use arrow keys to navigate and Enter to select.</p>
-    <input type="text" placeholder="Type :a to see suggestions…">
-    <textarea placeholder="Also works in textareas — try :al…"></textarea>
-    <div class="editable" contenteditable="true" style="margin-top: 0.25rem;">ContentEditable — type :af here…</div>
+    <input type="text" placeholder="Type :t to see suggestions…">
+    <textarea placeholder="Also works in textareas — try :co…"></textarea>
+    <div class="editable" contenteditable="true" style="margin-top: 0.25rem;">ContentEditable — type :bu here…</div>
   </section>
 
   <!-- ============================================ -->
   <section>
     <h2>Custom Emojis — Basic <span class="badge replace">should replace</span></h2>
-    <p>Classic: :1up: :1a: :afk:</p>
-    <p>HTTP status codes: :404: :500: :200: :401_unauthorized: :403_forbidden:</p>
-    <p>Numbers: :1000: :-100: :99: :180:</p>
+    <p>Status: :afk: :brb: :salute:</p>
+    <p>Reactions: :red_flag: :fingerguns: :big_brain: :green_flag:</p>
+    <p>Objects: :espresso: :rubber_duck: :forklift: :bandage:</p>
   </section>
 
   <!-- ============================================ -->
   <section>
     <h2>Inline with Surrounding Text <span class="badge replace">should replace</span></h2>
-    <p>This is :absolute_cinema: right here, truly amazing work.</p>
+    <p>This is :big_brain: energy right here, truly amazing work.</p>
     <p>I'm going :afk: for lunch, back in an hour.</p>
-    <p>When the deploy fails :ah_shit_here_we_go_again: and you're like :ahhhhhhhhh:</p>
-    <p>Getting that:access-denied:error again on staging.</p>
+    <p>When the deploy fails :dumpsterfire: and you're like :alarm:</p>
+    <p>Getting that:bug_fix:done before the deadline.</p>
   </section>
 
   <!-- ============================================ -->
   <section>
     <h2>Special Characters in Names <span class="badge replace">should replace</span></h2>
-    <p>Hyphens: :access-denied: :afri-cola: :ai-slop: :101-issues: :20-euroschein:</p>
-    <p>Underscores: :all_the_things: :4k_resolution: :ah_shit_here_we_go_again:</p>
-    <p>Plus signs: :+1_+1: :+1_+1_+1: :+1_+1_+1_+1: :18+: :+0_5:</p>
-    <p>Mixed: :7_vs_wild: :3d_drucker: :ai-slop:</p>
+    <p>Underscores: :big_brain: :bug_fix: :coffee_jitters: :diamond_hands:</p>
+    <p>More underscores: :gold_bars: :party_hat: :rubber_duck: :treasure_chest:</p>
+    <p>Single words: :afk: :brb: :alarm: :espresso: :salute: :red_flag: :green_flag:</p>
+    <p>Mixed: :treasure_map: :forklift: :bandage: :fingerguns: :dumpsterfire:</p>
   </section>
 
   <!-- ============================================ -->
   <section>
     <h2>Animated GIFs <span class="badge replace">should replace</span></h2>
     <p>These should appear as animated images:</p>
-    <p>:alarm: :alert: :ahhhhhhhhh: :aaaaaah_cat: :ah_shit_here_we_go_again: :aaw_yeah: :access-denied: :3d_drucker:</p>
+    <p>:alarm: :coffee_jitters: :dumpsterfire:</p>
   </section>
 
   <!-- ============================================ -->
   <section>
     <h2>Multiple on One Line <span class="badge replace">should replace</span></h2>
-    <p>:1up: :404: :500: :200: :99: :1a: :afk: :alarm: :alert:</p>
-    <p>:absolute_cinema: :actually: :ai_drunk: :agent: :all_the_things:</p>
+    <p>:afk: :brb: :alarm: :salute: :red_flag: :espresso: :green_flag: :fingerguns:</p>
+    <p>:big_brain: :diamond_hands: :dumpsterfire: :forklift: :gold_bars: :party_hat:</p>
   </section>
 
   <!-- ============================================ -->
@@ -199,14 +199,14 @@
     <h2>Inside a Table <span class="badge replace">should replace</span></h2>
     <table>
       <thead>
-        <tr><th>Status</th><th>Endpoint</th><th>Response</th></tr>
+        <tr><th>Status</th><th>Task</th><th>Notes</th></tr>
       </thead>
       <tbody>
-        <tr><td>:200:</td><td>/api/users</td><td>All good :1a:</td></tr>
-        <tr><td>:401_unauthorized:</td><td>/api/admin</td><td>:access-denied: Need auth</td></tr>
-        <tr><td>:403_forbidden:</td><td>/api/secrets</td><td>:alert: Forbidden</td></tr>
-        <tr><td>:404:</td><td>/api/nope</td><td>:all_the_things: Not found</td></tr>
-        <tr><td>:500:</td><td>/api/crash</td><td>:alarm: Internal error</td></tr>
+        <tr><td>:green_flag:</td><td>Hit the target</td><td>All good :salute:</td></tr>
+        <tr><td>:bug_fix:</td><td>Patch the auth module</td><td>:red_flag: Investigating</td></tr>
+        <tr><td>:dumpsterfire:</td><td>Refactor legacy code</td><td>:alarm: High priority</td></tr>
+        <tr><td>:diamond_hands:</td><td>Hold the line</td><td>:gold_bars: Steady</td></tr>
+        <tr><td>:party_hat:</td><td>Ship the release</td><td>:fingerguns: Done!</td></tr>
       </tbody>
     </table>
   </section>
@@ -214,12 +214,12 @@
   <!-- ============================================ -->
   <section>
     <h2>Inside Lists &amp; Headings <span class="badge replace">should replace</span></h2>
-    <h3>:agent: Sprint Review</h3>
+    <h3>:salute: Sprint Review</h3>
     <ul>
-      <li>:1a: Deployed new feature</li>
-      <li>:absolute_cinema: Demo went great</li>
-      <li>:101-issues: Backlog grooming tomorrow</li>
-      <li>:aero_press: Coffee break at 3pm</li>
+      <li>:green_flag: Deployed new feature</li>
+      <li>:big_brain: Demo went great</li>
+      <li>:bug_fix: Squashed three bugs</li>
+      <li>:espresso: Coffee break at 3pm</li>
       <li>:afk: Team offsite next Friday</li>
     </ul>
   </section>
@@ -229,52 +229,40 @@
     <h2>Chat-Style Bubbles <span class="badge replace">should replace</span></h2>
     <div class="chat">
       <div class="msg left">Hey, did you see the prod error? :alarm:</div>
-      <div class="msg right">:ahhhhhhhhh: which endpoint?</div>
-      <div class="msg left">The /admin route — :401_unauthorized: for everyone</div>
-      <div class="msg right">:ah_shit_here_we_go_again: let me check</div>
-      <div class="msg left">Found it! :1a: it was a config issue</div>
-      <div class="msg right">:absolute_cinema: nice catch :+1_+1:</div>
+      <div class="msg right">:dumpsterfire: which service?</div>
+      <div class="msg left">The auth module — :bug_fix: needed ASAP</div>
+      <div class="msg right">:red_flag: let me check</div>
+      <div class="msg left">Found it! :green_flag: it was a config issue</div>
+      <div class="msg right">:big_brain: nice catch :fingerguns:</div>
     </div>
   </section>
 
   <!-- ============================================ -->
   <section>
-    <h2>Alias Emojis <span class="badge replace">should replace</span></h2>
-    <p>These are aliases that point to other emojis. The extension should resolve the chain:</p>
-    <p>:aaaaaaaaah: (alias for ahhhhhhhhh)</p>
-    <p>:404_not_found: (alias for 404)</p>
-    <p>:agent_smith: (alias for agent)</p>
-    <p>:+2: (alias for plus2)</p>
-    <p>:+_1: (alias for plus_one)</p>
-    <p>:528g: (alias for leichter_als_gedacht)</p>
-  </section>
-
-  <!-- ============================================ -->
-  <section>
     <h2>Font Sizes &amp; Styles <span class="badge replace">should replace</span></h2>
-    <p style="font-size: 0.7rem;">Tiny (0.7rem): Status :200: confirmed :1a: with :absolute_cinema: results</p>
-    <p style="font-size: 0.85rem;">Small (0.85rem): Error :404: on deployment :alarm: check logs :alert:</p>
-    <p style="font-size: 1rem;">Base (1rem): Everything looks :1up: today :aero_press: coffee time</p>
-    <p style="font-size: 1.5rem;">Large (1.5rem): Big win :absolute_cinema: let's go :+1_+1:</p>
-    <p style="font-size: 2rem;">XL (2rem): :ahhhhhhhhh: production is down :500:</p>
-    <p style="font-size: 3rem;">XXL (3rem): :alarm: :alert: :1up:</p>
-    <p><strong>Bold:</strong> <strong>The deploy :1a: went :absolute_cinema: smoothly</strong></p>
-    <p><em>Italic:</em> <em>Going :afk: for a bit, back :200: soon</em></p>
-    <p><strong><em>Bold Italic:</em></strong> <strong><em>:ah_shit_here_we_go_again: not again :500:</em></strong></p>
-    <p><u>Underlined:</u> <u>:access-denied: auth failure on :401_unauthorized:</u></p>
-    <p><s>Strikethrough:</s> <s>:404: this endpoint was removed :all_the_things:</s></p>
-    <p style="font-family: 'Georgia', serif;">Serif font: :agent: reporting :1a: all clear :aero_press:</p>
-    <p style="font-family: 'SF Mono', 'Fira Code', monospace;">Monospace font: :alarm: :alert: :access-denied: :500: :200:</p>
-    <p style="font-family: 'Comic Sans MS', 'Chalkboard SE', cursive;">Cursive font: :absolute_cinema: having fun :1up: :aaw_yeah:</p>
-    <p style="letter-spacing: 0.3em;">Wide tracking: :1up: :404: :alarm:</p>
-    <p style="word-spacing: 1em;">Wide word-spacing: :absolute_cinema: :afk: :alert:</p>
-    <p style="line-height: 3;">Tall line-height: :200: success :1a: then :aero_press: break with :agent:</p>
-    <p style="color: #e74c3c;">Red text: :alarm: :500: :access-denied: critical failure</p>
-    <p style="color: #27ae60;">Green text: :200: :1a: :1up: all systems go</p>
-    <p style="background: #1a1a2e; color: #fff; padding: 0.5rem; border-radius: 6px;">Dark background: :absolute_cinema: :alert: :ahhhhhhhhh: :alarm:</p>
-    <p style="text-transform: uppercase;">Uppercase transform: :afk: status :404: on :agent: module</p>
-    <p><span style="font-size: 0.75rem;">Tiny :1up:</span> mixed with <span style="font-size: 2rem;">huge :alarm:</span> and <strong style="font-size: 1.25rem;">bold medium :absolute_cinema:</strong> in one line</p>
-    <p><sup>Superscript :1a:</sup> and <sub>subscript :404:</sub> text with emojis</p>
+    <p style="font-size: 0.7rem;">Tiny (0.7rem): Status :green_flag: confirmed :salute: with :big_brain: results</p>
+    <p style="font-size: 0.85rem;">Small (0.85rem): Error :dumpsterfire: on deployment :alarm: check logs :bug_fix:</p>
+    <p style="font-size: 1rem;">Base (1rem): Everything looks :diamond_hands: today :espresso: coffee time</p>
+    <p style="font-size: 1.5rem;">Large (1.5rem): Big win :big_brain: let's go :fingerguns:</p>
+    <p style="font-size: 2rem;">XL (2rem): :alarm: production is down :dumpsterfire:</p>
+    <p style="font-size: 3rem;">XXL (3rem): :alarm: :red_flag: :salute:</p>
+    <p><strong>Bold:</strong> <strong>The deploy :green_flag: went :big_brain: smoothly</strong></p>
+    <p><em>Italic:</em> <em>Going :afk: for a bit, back :brb: soon</em></p>
+    <p><strong><em>Bold Italic:</em></strong> <strong><em>:dumpsterfire: not again :alarm:</em></strong></p>
+    <p><u>Underlined:</u> <u>:bug_fix: patched the :forklift: module</u></p>
+    <p><s>Strikethrough:</s> <s>:treasure_map: this quest was removed :treasure_chest:</s></p>
+    <p style="font-family: 'Georgia', serif;">Serif font: :salute: reporting :green_flag: all clear :espresso:</p>
+    <p style="font-family: 'SF Mono', 'Fira Code', monospace;">Monospace font: :alarm: :red_flag: :bug_fix: :dumpsterfire: :diamond_hands:</p>
+    <p style="font-family: 'Comic Sans MS', 'Chalkboard SE', cursive;">Cursive font: :big_brain: having fun :party_hat: :coffee_jitters:</p>
+    <p style="letter-spacing: 0.3em;">Wide tracking: :salute: :alarm: :red_flag:</p>
+    <p style="word-spacing: 1em;">Wide word-spacing: :big_brain: :afk: :green_flag:</p>
+    <p style="line-height: 3;">Tall line-height: :diamond_hands: steady :green_flag: then :espresso: break with :salute:</p>
+    <p style="color: #e74c3c;">Red text: :alarm: :dumpsterfire: :bug_fix: critical failure</p>
+    <p style="color: #27ae60;">Green text: :green_flag: :salute: :diamond_hands: all systems go</p>
+    <p style="background: #1a1a2e; color: #fff; padding: 0.5rem; border-radius: 6px;">Dark background: :big_brain: :red_flag: :alarm: :dumpsterfire:</p>
+    <p style="text-transform: uppercase;">Uppercase transform: :afk: status :bug_fix: on :forklift: module</p>
+    <p><span style="font-size: 0.75rem;">Tiny :salute:</span> mixed with <span style="font-size: 2rem;">huge :alarm:</span> and <strong style="font-size: 1.25rem;">bold medium :big_brain:</strong> in one line</p>
+    <p><sup>Superscript :green_flag:</sup> and <sub>subscript :red_flag:</sub> text with emojis</p>
   </section>
 
   <!-- ============================================ -->
@@ -282,9 +270,9 @@
     <h2>Edge Cases <span class="badge replace">should replace</span></h2>
     <p>Empty colon pair (should NOT match): :: or : :</p>
     <p>Single colon: just a : in the middle</p>
-    <p>Triple colon: :::404::: — only the inner :404: should match</p>
-    <p>Back-to-back: :1up::404::500: — three emojis, no spaces</p>
-    <p>Nested-looking: :absolute:cinema: — matches :absolute: if it exists, then leftover</p>
+    <p>Triple colon: :::alarm::: — only the inner :alarm: should match</p>
+    <p>Back-to-back: :salute::red_flag::espresso: — three emojis, no spaces</p>
+    <p>Nested-looking: :big:brain: — no match since :big: doesn't exist</p>
     <p>Non-existent emoji: :this_emoji_definitely_does_not_exist_xyz: — should stay as text</p>
   </section>
 
@@ -292,30 +280,30 @@
   <section>
     <h2>Code Block — Should NOT Replace <span class="badge skip">should skip</span></h2>
     <p>The extension skips <code>&lt;code&gt;</code> and <code>&lt;pre&gt;</code> tags:</p>
-    <code>const status = ":404:"; // should stay as text</code>
+    <code>const emoji = ":red_flag:"; // should stay as text</code>
     <pre>function getEmoji() {
-  return ":absolute_cinema:";  // should stay as text
-  // :alarm: :alert: :1up:
+  return ":big_brain:";  // should stay as text
+  // :alarm: :salute: :espresso:
 }</pre>
-    <p>But this paragraph after the code block :1up: <strong>should</strong> be replaced.</p>
+    <p>But this paragraph after the code block :salute: <strong>should</strong> be replaced.</p>
   </section>
 
   <!-- ============================================ -->
   <section>
     <h2>Form Fields — Should NOT Replace <span class="badge skip">should skip</span></h2>
     <p>Text inside inputs and textareas should stay untouched:</p>
-    <input type="text" value="Status: :404: :500: :access-denied:" readonly>
+    <input type="text" value="Status: :red_flag: :alarm: :bug_fix:" readonly>
     <textarea readonly>Emojis in textarea:
-:absolute_cinema: :alarm: :1up:
+:big_brain: :dumpsterfire: :espresso:
 These should remain as plain text.</textarea>
-    <p>But this text outside the inputs :absolute_cinema: <strong>should</strong> be replaced.</p>
+    <p>But this text outside the inputs :big_brain: <strong>should</strong> be replaced.</p>
   </section>
 
   <!-- ============================================ -->
   <section>
     <h2>ContentEditable — Should NOT Replace <span class="badge skip">should skip</span></h2>
     <div class="editable" contenteditable="true">
-      Try typing here: :1up: :404: :alarm: — the extension should skip contenteditable regions.
+      Try typing here: :salute: :red_flag: :alarm: — the extension should skip contenteditable regions.
     </div>
   </section>
 
@@ -328,14 +316,14 @@ These should remain as plain text.</textarea>
     <script>
       let counter = 0;
       const phrases = [
-        "Dynamically added: :absolute_cinema: :1up: :alarm:",
-        "Another one: :access-denied: Oops! :ahhhhhhhhh:",
-        "Status update: :200: All systems go :1a:",
-        "Agent reporting in :agent: with :ai_drunk: vibes",
-        ":alert: Deploy alert! :500: :ah_shit_here_we_go_again:",
-        "Coffee time :aero_press: then :afk: for lunch",
-        ":all_the_things: Let's refactor :all_the_things:",
-        "Back-to-back: :1up::404::alarm::alert: done!",
+        "Dynamically added: :big_brain: :salute: :alarm:",
+        "Another one: :bug_fix: Oops! :dumpsterfire:",
+        "Status update: :green_flag: All systems go :diamond_hands:",
+        "Coffee time :espresso: then :afk: for lunch",
+        ":alarm: Deploy alert! :dumpsterfire: :red_flag:",
+        "Treasure hunt: :treasure_map: leads to :treasure_chest: :gold_bars:",
+        ":party_hat: Let's celebrate :fingerguns: :coffee_jitters:",
+        "Back-to-back: :salute::red_flag::espresso::alarm: done!",
       ];
       function injectDynamic() {
         const target = document.getElementById("dynamic-target");

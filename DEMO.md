@@ -1,102 +1,149 @@
-# Emoji Everywhere -- Test Page
+# Emoji Everywhere — Test Page
 
-Use this page to verify that the **Emoji Everywhere** browser extension is
-replacing `:custom_emoji:` patterns with actual images.
-
-If the extension is active and you have emojis loaded from a Slack workspace
-or ZIP import, the colon-wrapped names below should render as images instead
-of plain text.
+Open this page with the extension active and a source loaded
+(try importing `assets/demo.zip`). Emojis in normal text should be replaced;
+emojis inside code blocks should stay as plain text.
 
 ---
 
-## Inline usage
+## Custom Emojis — Basic
 
-Hey team :wave:, the deploy is done :shipit: -- let's celebrate :tada:!
+Status: :afk: :brb: :salute:
 
-Great job on the review :thumbsup: :thumbsup_all: :partyparrot:
+Reactions: :red_flag: :fingerguns: :big_brain: :green_flag:
 
-This PR is :fire: :100: :rocket:
-
----
-
-## Common custom emojis
-
-| Pattern | Should render? |
-|---|---|
-| :thumbsup: | yes, if loaded |
-| :thumbsdown: | yes, if loaded |
-| :party_parrot: | yes, if loaded |
-| :partyparrot: | yes, if loaded |
-| :shipit: | yes, if loaded |
-| :troll: | yes, if loaded |
-| :doge: | yes, if loaded |
-| :this-is-fine: | yes, if loaded |
-| :harold: | yes, if loaded |
-| :facepalm: | yes, if loaded |
-| :catjam: | yes, if loaded |
-| :blobwave: | yes, if loaded |
-| :meow_party: | yes, if loaded |
-| :nyan_cat: | yes, if loaded |
-| :lgtm: | yes, if loaded |
+Objects: :espresso: :rubber_duck: :forklift: :bandage:
 
 ---
 
-## Edge cases
+## Inline with Surrounding Text
 
-### Multiple emojis in a row
+This is :big_brain: energy right here, truly amazing work.
 
-:rocket::rocket::rocket: launch time!
+I'm going :afk: for lunch, back in an hour.
 
-### Emojis with hyphens and underscores
+When the deploy fails :dumpsterfire: and you're like :alarm:
 
-:this-is-fine: :not_bad: :feels-good-man: :big_thumbs_up:
+Getting that:bug_fix:done before the deadline.
 
-### Emoji surrounded by punctuation
+---
 
-Have you seen :doge:? It's (:fire:) absolutely :100:!
+## Special Characters in Names
 
-### Emoji at the start and end of a line
+Underscores: :big_brain: :bug_fix: :coffee_jitters: :diamond_hands:
 
-:wave: Hello world :wave:
+More underscores: :gold_bars: :party_hat: :rubber_duck: :treasure_chest:
 
-### Emoji in bold and italic text
+Single words: :afk: :brb: :alarm: :espresso: :salute: :red_flag: :green_flag:
 
-**:fire: Hot take** and *:eyes: interesting*
+Mixed: :treasure_map: :forklift: :bandage: :fingerguns: :dumpsterfire:
 
-### Emoji in list items
+---
 
-- :white_check_mark: Tests passing
-- :x: Build failed
-- :hourglass: Waiting for review
-- :tada: Merged!
+## Animated GIFs
 
-### Emoji in blockquotes
+These should appear as animated images:
 
-> :mega: Reminder: deploy window is 2-4pm :clock2:
+:alarm: :coffee_jitters: :dumpsterfire:
 
-### Not an emoji (should stay as text)
+---
 
-These should **not** be replaced because they appear inside code:
+## Multiple on One Line
 
-- Inline code: `:shipit:`
-- Code block:
+:afk: :brb: :alarm: :salute: :red_flag: :espresso: :green_flag: :fingerguns:
+
+:big_brain: :diamond_hands: :dumpsterfire: :forklift: :gold_bars: :party_hat:
+
+---
+
+## Inside a Table
+
+| Status | Task | Notes |
+|---|---|---|
+| :green_flag: | Hit the target | All good :salute: |
+| :bug_fix: | Patch the auth module | :red_flag: Investigating |
+| :dumpsterfire: | Refactor legacy code | :alarm: High priority |
+| :diamond_hands: | Hold the line | :gold_bars: Steady |
+| :party_hat: | Ship the release | :fingerguns: Done! |
+
+---
+
+## Inside Lists & Headings
+
+### :salute: Sprint Review
+
+- :green_flag: Deployed new feature
+- :big_brain: Demo went great
+- :bug_fix: Squashed three bugs
+- :espresso: Coffee break at 3pm
+- :afk: Team offsite next Friday
+
+---
+
+## Font Styles
+
+**Bold:** **The deploy :green_flag: went :big_brain: smoothly**
+
+*Italic:* *Going :afk: for a bit, back :brb: soon*
+
+***Bold Italic:*** ***:dumpsterfire: not again :alarm:***
+
+~~Strikethrough:~~ ~~:treasure_map: this quest was removed :treasure_chest:~~
+
+---
+
+## Edge Cases
+
+Empty colon pair (should NOT match): :: or : :
+
+Single colon: just a : in the middle
+
+Triple colon: :::alarm::: — only the inner :alarm: should match
+
+Back-to-back: :salute::red_flag::espresso: — three emojis, no spaces
+
+Non-existent emoji: :this_emoji_definitely_does_not_exist_xyz: — should stay as text
+
+---
+
+## Blockquote
+
+> :alarm: Deploy alert! :dumpsterfire: :red_flag:
+>
+> Treasure hunt: :treasure_map: leads to :treasure_chest: :gold_bars:
+>
+> :party_hat: Let's celebrate :fingerguns: :coffee_jitters:
+
+---
+
+## Code — Should NOT Replace
+
+The extension skips `<code>` and `<pre>` tags:
+
+Inline code: `:red_flag:` `:big_brain:` `:alarm:`
+
+Code block:
 
 ```
-:partyparrot: this should remain text
+function getEmoji() {
+  return ":big_brain:";  // should stay as text
+  // :alarm: :salute: :espresso:
+}
 ```
 
----
-
-## Stress test -- many emojis in one paragraph
-
-:wave: :thumbsup: :tada: :fire: :rocket: :100: :eyes: :shipit: :doge:
-:partyparrot: :catjam: :lgtm: :blobwave: :meow_party: :nyan_cat: :harold:
-:facepalm: :troll: :this-is-fine: :party_parrot: :thumbsdown: :mega:
-:white_check_mark: :x: :hourglass: :clock2: :feels-good-man: :big_thumbs_up:
-:not_bad: :cool-doge: :blob-dance: :party-blob:
+But this paragraph after the code block :salute: **should** be replaced.
 
 ---
 
-*If any of the above names match emojis you've loaded into the extension,
-they should appear as images. Names that don't match any loaded emoji will
-remain as plain `:text:`.*
+## All Demo Emojis
+
+:afk: :brb: :salute: :red_flag: :fingerguns: :big_brain: :green_flag:
+:espresso: :rubber_duck: :forklift: :bandage: :dumpsterfire: :alarm:
+:bug_fix: :coffee_jitters: :diamond_hands: :gold_bars: :party_hat:
+:treasure_chest: :treasure_map:
+
+---
+
+*If any of the above names match emojis loaded into the extension,
+they should appear as images. Names that don't match will remain
+as plain `:text:`.*

@@ -1,6 +1,8 @@
 import { useState, useRef } from "react";
 import type { EmojiMap, ZipSource } from "@/lib/types";
-import { setEmojiImageData, addSource, buildEmojiRefs } from "@/lib/storage";
+import { DEFAULT_SOURCE_DOMAIN_FILTER } from "@/lib/types";
+import { setEmojiImageData, addSource, buildEmojiRefs, replaceEmojiOverridesForSource } from "@/lib/storage";
+import { ICON_PACK_CONFIG_FILE, parseIconPackConfig } from "@/lib/icon-pack";
 
 const IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "gif", "webp", "svg"]);
 
@@ -18,16 +20,20 @@ export default function ZipImport() {
     setState({ step: "processing", fileName: file.name, current: 0, total: 0 });
 
     try {
-      const { BlobReader, ZipReader, BlobWriter } = await import("@zip.js/zip.js");
+      const { BlobReader, ZipReader, BlobWriter, TextWriter } = await import("@zip.js/zip.js");
       const reader = new ZipReader(new BlobReader(file), {
         useWebWorkers: false,
       });
       const entries = await reader.getEntries();
+      const configEntry = entries.find(
+        (entry) => !entry.directory && entry.filename.split("/").pop() === ICON_PACK_CONFIG_FILE,
+      );
 
       const imageEntries = entries.filter((entry) => {
         if (entry.directory || !entry.getData) return false;
         const pathParts = entry.filename.split("/");
         const fileName = pathParts[pathParts.length - 1];
+        if (fileName === ICON_PACK_CONFIG_FILE) return false;
         if (fileName.startsWith(".") || fileName.startsWith("__")) return false;
         const dotIndex = fileName.lastIndexOf(".");
         if (dotIndex === -1) return false;
@@ -40,6 +46,7 @@ export default function ZipImport() {
       setState((s) => s.step === "processing" ? { ...s, total: imageEntries.length } : s);
 
       const emojis: EmojiMap = {};
+      const emojiNames: string[] = [];
       let processed = 0;
 
       for (const entry of imageEntries) {
@@ -51,9 +58,21 @@ export default function ZipImport() {
         const blob = await entry.getData!(new BlobWriter());
         const dataUrl = await blobToDataUrl(blob);
         emojis[name] = dataUrl;
+        emojiNames.push(name);
 
         processed++;
         setState((s) => s.step === "processing" ? { ...s, current: processed } : s);
+      }
+
+      let importedConfig = {
+        sourceName: null as string | null,
+        domainFilter: DEFAULT_SOURCE_DOMAIN_FILTER,
+        overrides: {},
+      };
+
+      if (configEntry?.getData) {
+        const configRaw = await configEntry.getData(new TextWriter());
+        importedConfig = parseIconPackConfig(configRaw, emojiNames);
       }
 
       await reader.close();
@@ -72,13 +91,19 @@ export default function ZipImport() {
       const source: ZipSource = {
         type: "zip",
         id,
-        name: zipName,
+        name: importedConfig.sourceName ?? zipName,
         emojis: refs,
+        domainFilter: importedConfig.domainFilter,
         addedAt: Date.now(),
       };
       await addSource(source);
+      await replaceEmojiOverridesForSource(id, importedConfig.overrides);
 
-      setState({ step: "done", fileName: zipName, count: Object.keys(emojis).length });
+      setState({
+        step: "done",
+        fileName: importedConfig.sourceName ?? zipName,
+        count: Object.keys(emojis).length,
+      });
     } catch (err) {
       setState({
         step: "error",

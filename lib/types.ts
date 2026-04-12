@@ -2,6 +2,36 @@ export interface EmojiMap {
   [name: string]: string;
 }
 
+export interface EmojiOverride {
+  disabled: boolean;
+  name: string | null;
+  aliases: string[];
+  nativeEmojis: string[];
+}
+
+export interface EmojiOverridesBySource {
+  [sourceId: string]: {
+    [emojiName: string]: EmojiOverride;
+  };
+}
+
+export interface EffectiveEmojiEntry {
+  sourceId: string;
+  originalName: string;
+  primaryName: string;
+  aliases: string[];
+  nativeEmojis: string[];
+  enabled: boolean;
+  ref: string;
+}
+
+export type SourceDomainFilterMode = "allow" | "deny";
+
+export interface SourceDomainFilter {
+  mode: SourceDomainFilterMode;
+  domains: string[];
+}
+
 export interface Settings {
   enabled: boolean;
   emojiSize: number;
@@ -15,6 +45,7 @@ export interface SlackSource {
   teamName: string | null;
   token: string;
   emojis: EmojiMap;
+  domainFilter: SourceDomainFilter;
   lastRefresh: number | null;
   error: string | null;
 }
@@ -24,6 +55,7 @@ export interface ZipSource {
   id: string;
   name: string;
   emojis: EmojiMap;
+  domainFilter: SourceDomainFilter;
   addedAt: number;
 }
 
@@ -34,6 +66,8 @@ export interface SourceSummary {
   type: EmojiSource["type"];
   name: string;
   emojiCount: number;
+  effectiveEmojiCount: number;
+  domainFilter: SourceDomainFilter;
   lastRefresh: number | null;
   error: string | null;
 }
@@ -51,6 +85,17 @@ export type MessageType =
   | { type: "GET_STATUS" }
   | { type: "REMOVE_SOURCE"; sourceId: string }
   | { type: "RENAME_SOURCE"; sourceId: string; name: string }
+  | {
+    type: "UPDATE_EMOJI_OVERRIDE";
+    sourceId: string;
+    emojiName: string;
+    override: Partial<EmojiOverride>;
+  }
+  | {
+    type: "UPDATE_SOURCE_DOMAIN_FILTER";
+    sourceId: string;
+    domainFilter: SourceDomainFilter;
+  }
   | { type: "STATUS_RESPONSE"; status: ExtensionStatus }
   | { type: "OAUTH_COMPLETE"; success: boolean; error?: string }
   | { type: "EMOJIS_UPDATED" }
@@ -60,6 +105,11 @@ export type MessageType =
   | { type: "REFRESH_IF_STALE" };
 
 export const EMOJI_REF_PREFIX = "ref:";
+
+export const DEFAULT_SOURCE_DOMAIN_FILTER: SourceDomainFilter = {
+  mode: "deny",
+  domains: [],
+};
 
 export const DEFAULT_SETTINGS: Settings = {
   enabled: true,

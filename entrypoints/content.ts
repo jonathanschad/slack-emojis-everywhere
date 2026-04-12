@@ -1,8 +1,19 @@
-import { getMergedEmojis, getSettings, getExcludedDomains, watchMergedEmojis, watchSettings, watchExcludedDomains } from "@/lib/storage";
+import {
+  buildMergedEmojisForHostname,
+  buildMergedNativeEmojiMapForHostname,
+  getEmojiOverrides,
+  getSettings,
+  getExcludedDomains,
+  getSources,
+  watchEmojiOverrides,
+  watchSettings,
+  watchExcludedDomains,
+  watchSources,
+} from "@/lib/storage";
 import { scanAndReplace, createObserver } from "@/lib/emoji-replacer";
 import { initAutocomplete, updateEmojis } from "@/lib/emoji-autocomplete";
 import { clearResolverCache } from "@/lib/emoji-image-resolver";
-import type { EmojiMap, Settings } from "@/lib/types";
+import type { EmojiMap, EmojiOverridesBySource, EmojiSource, Settings } from "@/lib/types";
 
 function isDomainExcluded(excludedDomains: string[]): boolean {
   const hostname = window.location.hostname.toLowerCase();
@@ -16,7 +27,11 @@ export default defineContentScript({
   runAt: "document_idle",
 
   async main() {
-    let emojis: EmojiMap = await getMergedEmojis();
+    const hostname = window.location.hostname.toLowerCase();
+    let sources: EmojiSource[] = await getSources();
+    let overrides: EmojiOverridesBySource = await getEmojiOverrides();
+    let emojis: EmojiMap = buildMergedEmojisForHostname(sources, hostname, overrides);
+    let nativeEmojiMap: EmojiMap = buildMergedNativeEmojiMapForHostname(sources, hostname, overrides);
     let settings: Settings = await getSettings();
     let excludedDomains: string[] = await getExcludedDomains();
     let observer: MutationObserver | null = null;
@@ -39,9 +54,9 @@ export default defineContentScript({
     function start() {
       if (!isActive() || Object.keys(emojis).length === 0) return;
 
-      scanAndReplace(document.body, emojis);
+      scanAndReplace(document.body, emojis, nativeEmojiMap);
 
-      observer = createObserver(emojis);
+      observer = createObserver(emojis, nativeEmojiMap);
       observer.observe(document.body, {
         childList: true,
         subtree: true,
@@ -66,10 +81,21 @@ export default defineContentScript({
 
     browser.runtime.sendMessage({ type: "REFRESH_IF_STALE" }).catch(() => {});
 
-    watchMergedEmojis((newEmojis) => {
-      emojis = newEmojis;
+    watchSources((newSources) => {
+      sources = newSources;
+      emojis = buildMergedEmojisForHostname(sources, hostname, overrides);
+      nativeEmojiMap = buildMergedNativeEmojiMapForHostname(sources, hostname, overrides);
       clearResolverCache();
-      updateEmojis(newEmojis);
+      updateEmojis(emojis);
+      restart();
+    });
+
+    watchEmojiOverrides((newOverrides) => {
+      overrides = newOverrides;
+      emojis = buildMergedEmojisForHostname(sources, hostname, overrides);
+      nativeEmojiMap = buildMergedNativeEmojiMapForHostname(sources, hostname, overrides);
+      clearResolverCache();
+      updateEmojis(emojis);
       restart();
     });
 

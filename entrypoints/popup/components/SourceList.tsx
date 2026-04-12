@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
-import type { SourceSummary } from "@/lib/types";
-import { getEmojiImageData } from "@/lib/storage";
+import type { SourceDomainFilterMode, SourceSummary } from "@/lib/types";
+import { getEmojiImageData, getEmojiOverrides } from "@/lib/storage";
+import { ICON_PACK_CONFIG_FILE, buildIconPackConfig } from "@/lib/icon-pack";
 import EmojiGrid from "./EmojiGrid";
 
 interface Props {
@@ -38,9 +39,49 @@ function SourceCard({
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState(source.name);
+  const [domainMode, setDomainMode] = useState<SourceDomainFilterMode>(
+    source.domainFilter.mode,
+  );
+  const [domainInput, setDomainInput] = useState("");
+  const [savingFilter, setSavingFilter] = useState(false);
+  const [showDomainRules, setShowDomainRules] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const savingRef = useRef(false);
   const cancelledRef = useRef(false);
+
+  useEffect(() => {
+    setDomainMode(source.domainFilter.mode);
+  }, [source.domainFilter.mode]);
+
+  const saveDomainFilter = async (
+    mode: SourceDomainFilterMode,
+    domains: string[],
+  ) => {
+    setSavingFilter(true);
+    setError(null);
+
+    try {
+      const response = await browser.runtime.sendMessage({
+        type: "UPDATE_SOURCE_DOMAIN_FILTER",
+        sourceId: source.id,
+        domainFilter: {
+          mode,
+          domains,
+        },
+      });
+
+      if (!response?.success) {
+        throw new Error(response?.error ?? "Failed to save icon pack rules");
+      }
+
+      await onStatusChange();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save icon pack rules");
+      setDomainMode(source.domainFilter.mode);
+    } finally {
+      setSavingFilter(false);
+    }
+  };
 
   useEffect(() => {
     if (editing) {
@@ -107,7 +148,10 @@ function SourceCard({
     setError(null);
 
     try {
-      const imageData = await getEmojiImageData(source.id);
+      const [imageData, overrides] = await Promise.all([
+        getEmojiImageData(source.id),
+        getEmojiOverrides(),
+      ]);
       if (!imageData) throw new Error("Source not found");
 
       const entries = Object.entries(imageData);
@@ -119,6 +163,19 @@ function SourceCard({
       const zipWriter = new ZipWriter(new BlobWriter("application/zip"), {
         useWebWorkers: false,
       });
+      const config = buildIconPackConfig({
+        sourceName: source.name,
+        domainFilter: source.domainFilter,
+        overrides: overrides[source.id],
+      });
+      await zipWriter.add(
+        ICON_PACK_CONFIG_FILE,
+        new BlobReader(
+          new Blob([JSON.stringify(config, null, 2)], {
+            type: "application/json",
+          }),
+        ),
+      );
 
       let completed = 0;
       for (const [name, url] of entries) {
@@ -162,6 +219,12 @@ function SourceCard({
   const lastSyncText = source.lastRefresh
     ? formatRelativeTime(source.lastRefresh)
     : "Never";
+  const hasDomainRules = source.domainFilter.domains.length > 0;
+  const filterSummary = hasDomainRules
+    ? `${source.domainFilter.mode === "allow" ? "Only on" : "Everywhere except"} ${source.domainFilter.domains.length} domain${source.domainFilter.domains.length === 1 ? "" : "s"}`
+    : source.domainFilter.mode === "allow"
+      ? "Inactive until an allowed domain is added"
+      : "Active on every domain";
 
   return (
     <div className="border border-gray-200 rounded-lg overflow-hidden">
@@ -198,11 +261,14 @@ function SourceCard({
               </span>
             )}
             <span className="text-xs text-gray-400 shrink-0">
-              {source.emojiCount}
+              {source.effectiveEmojiCount}
             </span>
           </div>
           <p className="text-xs text-gray-400 truncate">
             {source.type === "slack" ? `Synced ${lastSyncText}` : `Imported ${lastSyncText}`}
+          </p>
+          <p className="text-xs text-gray-400 truncate">
+            {filterSummary}
           </p>
         </div>
         <svg
@@ -234,7 +300,133 @@ function SourceCard({
             </div>
           )}
 
-          <EmojiGrid sourceId={source.id} />
+          <EmojiGrid sourceId={source.id} onStatusChange={onStatusChange} />
+
+          <div className="rounded-lg border border-gray-200 bg-gray-50 overflow-hidden">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowDomainRules((prev) => !prev);
+              }}
+              className="w-full flex items-center gap-2 px-3 py-2.5 text-left cursor-pointer hover:bg-gray-100 transition-colors"
+            >
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium text-gray-700">Where this pack is active</p>
+                <p className="text-[11px] text-gray-500 truncate">{filterSummary}</p>
+              </div>
+              {savingFilter && (
+                <span className="text-[11px] text-gray-400">Saving...</span>
+              )}
+              <svg
+                className={`w-3.5 h-3.5 text-gray-400 transition-transform ${showDomainRules ? "rotate-180" : ""}`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            {showDomainRules && (
+              <div className="border-t border-gray-200 p-3 space-y-2">
+                <p className="text-[11px] text-gray-500">
+                  Use an allow list to limit this pack to specific sites, or a deny list to block it on selected sites.
+                </p>
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDomainMode("deny");
+                      void saveDomainFilter("deny", source.domainFilter.domains);
+                    }}
+                    disabled={savingFilter}
+                    className={`flex-1 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors cursor-pointer ${
+                      domainMode === "deny"
+                        ? "border-purple-300 bg-purple-50 text-purple-700"
+                        : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
+                    }`}
+                  >
+                    Deny list
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDomainMode("allow");
+                      void saveDomainFilter("allow", source.domainFilter.domains);
+                    }}
+                    disabled={savingFilter}
+                    className={`flex-1 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors cursor-pointer ${
+                      domainMode === "allow"
+                        ? "border-purple-300 bg-purple-50 text-purple-700"
+                        : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
+                    }`}
+                  >
+                    Allow list
+                  </button>
+                </div>
+
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const normalized = domainInput.toLowerCase().trim().replace(/^\.+/, "").replace(/\.+$/, "");
+                    if (!normalized || source.domainFilter.domains.includes(normalized)) return;
+                    setDomainInput("");
+                    void saveDomainFilter(domainMode, [
+                      ...source.domainFilter.domains,
+                      normalized,
+                    ]);
+                  }}
+                  className="flex gap-2"
+                >
+                  <input
+                    type="text"
+                    value={domainInput}
+                    onChange={(e) => setDomainInput(e.target.value)}
+                    onClick={(e) => e.stopPropagation()}
+                    placeholder="example.com"
+                    className="flex-1 min-w-0 rounded-md border border-gray-300 bg-white px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  />
+                  <button
+                    type="submit"
+                    disabled={!domainInput.trim() || savingFilter}
+                    className="rounded-md bg-purple-600 px-3 py-2 text-xs font-medium text-white hover:bg-purple-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Add
+                  </button>
+                </form>
+
+                {source.domainFilter.domains.length === 0 ? (
+                  <p className="text-[11px] text-gray-500">
+                    {domainMode === "allow"
+                      ? "No domains added yet, so this pack will stay inactive until you add one."
+                      : "No domains blocked yet, so this pack is active everywhere."}
+                  </p>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5">
+                    {source.domainFilter.domains.map((domain) => (
+                      <button
+                        key={domain}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void saveDomainFilter(
+                            domainMode,
+                            source.domainFilter.domains.filter((item) => item !== domain),
+                          );
+                        }}
+                        disabled={savingFilter}
+                        className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2 py-1 text-[11px] text-gray-700 hover:border-red-200 hover:text-red-600 transition-colors cursor-pointer"
+                        title={`Remove ${domain}`}
+                      >
+                        <span>{domain}</span>
+                        <span aria-hidden="true">x</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
           <div className="flex items-center gap-2 pt-1">
             <button

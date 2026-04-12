@@ -5,9 +5,12 @@ import {
   updateSource,
   removeSource,
   getSettings,
+  getEmojiOverrides,
   setEmojiImageData,
   removeEmojiImageData,
   buildEmojiRefs,
+  getEffectiveEmojiEntriesForSource,
+  updateEmojiOverride,
   getExcludedDomains,
   addExcludedDomain,
   removeExcludedDomain,
@@ -24,6 +27,7 @@ import {
 } from "@/lib/slack";
 import { preCacheImages, clearImageCache } from "@/lib/emoji-cache";
 import type { EmojiSource, ExtensionStatus, SlackSource, SourceSummary, EmojiMap } from "@/lib/types";
+import { DEFAULT_SOURCE_DOMAIN_FILTER } from "@/lib/types";
 import predefinedExclusionsRaw from "@/excluded-domains.txt?raw";
 
 const STALE_THRESHOLD_MS = 60 * 60 * 1000; // 1 hour
@@ -190,12 +194,18 @@ function generateId(): string {
   return crypto.randomUUID();
 }
 
-function summarizeSource(source: EmojiSource): SourceSummary {
+function summarizeSource(
+  source: EmojiSource,
+  overrides: Awaited<ReturnType<typeof getEmojiOverrides>>,
+): SourceSummary {
   return {
     id: source.id,
     type: source.type,
     name: source.name,
     emojiCount: Object.keys(source.emojis).length,
+    effectiveEmojiCount: getEffectiveEmojiEntriesForSource(source, overrides)
+      .reduce((count, entry) => count + 1 + entry.aliases.length + entry.nativeEmojis.length, 0),
+    domainFilter: source.domainFilter,
     lastRefresh: source.type === "slack" ? source.lastRefresh : source.addedAt,
     error: source.type === "slack" ? source.error : null,
   };
@@ -226,6 +236,9 @@ async function startOAuthFlow(): Promise<{ success: boolean; error?: string }> {
       url: authUrl,
       interactive: true,
     });
+    if (!responseUrl) {
+      return { success: false, error: "Slack OAuth did not return a redirect URL" };
+    }
 
     const url = new URL(responseUrl);
     const error = url.searchParams.get("error");
@@ -265,6 +278,7 @@ async function startOAuthFlow(): Promise<{ success: boolean; error?: string }> {
         teamName: teamName ?? null,
         token: accessToken,
         emojis: {},
+        domainFilter: DEFAULT_SOURCE_DOMAIN_FILTER,
         lastRefresh: null,
         error: null,
       };
@@ -323,19 +337,27 @@ async function refreshAllSlackSources(): Promise<void> {
 }
 
 async function getStatus(): Promise<ExtensionStatus> {
-  const sources = await getSources();
+  const [sources, overrides] = await Promise.all([
+    getSources(),
+    getEmojiOverrides(),
+  ]);
   let totalEmojiCount = 0;
   const allNames = new Set<string>();
 
   const summaries = sources.map((s) => {
-    const summary = summarizeSource(s);
-    totalEmojiCount += summary.emojiCount;
-    for (const name of Object.keys(s.emojis)) {
-      allNames.add(name);
+    const summary = summarizeSource(s, overrides);
+    totalEmojiCount += summary.effectiveEmojiCount;
+    for (const entry of getEffectiveEmojiEntriesForSource(s, overrides)) {
+      allNames.add(entry.primaryName);
+      for (const alias of entry.aliases) {
+        allNames.add(alias);
+      }
+      for (const nativeEmoji of entry.nativeEmojis) {
+        allNames.add(nativeEmoji);
+      }
     }
     return summary;
   });
-
   const duplicateCount = totalEmojiCount - allNames.size;
 
   return { sources: summaries, totalEmojiCount, duplicateCount };
@@ -423,6 +445,35 @@ export default defineBackground(() => {
           ...s,
           name: message.name,
         }) as EmojiSource)
+          .then(() => sendResponse({ success: true }))
+          .catch((err) =>
+            sendResponse({
+              success: false,
+              error: err instanceof Error ? err.message : "Unknown error",
+            }),
+          );
+        return true;
+
+      case "UPDATE_SOURCE_DOMAIN_FILTER":
+        updateSource(message.sourceId, (s) => ({
+          ...s,
+          domainFilter: message.domainFilter,
+        }) as EmojiSource)
+          .then(() => sendResponse({ success: true }))
+          .catch((err) =>
+            sendResponse({
+              success: false,
+              error: err instanceof Error ? err.message : "Unknown error",
+            }),
+          );
+        return true;
+
+      case "UPDATE_EMOJI_OVERRIDE":
+        updateEmojiOverride(
+          message.sourceId,
+          message.emojiName,
+          message.override,
+        )
           .then(() => sendResponse({ success: true }))
           .catch((err) =>
             sendResponse({

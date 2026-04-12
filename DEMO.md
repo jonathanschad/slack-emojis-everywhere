@@ -16,6 +16,31 @@ Objects: :espresso: :rubber_duck: :forklift: :bandage:
 
 ---
 
+## Native Emoji Remaps
+
+In the popup, open any custom emoji and add one or more literal emoji triggers
+in `Replace native emojis`.
+
+Example setup:
+
+- map `🥸` to `:big_brain:`
+- map `🤖` to `:rubber_duck:`
+
+After saving that mapping, the raw emoji characters below should be replaced
+by your custom emoji images:
+
+Single: 🥸
+
+Inline text: Shipping this fix with 🥸 confidence and 🤖 precision.
+
+Back-to-back: 🥸🤖🥸
+
+Mixed with existing syntax: :salute: 🥸 :espresso: 🤖
+
+Repeated line: 🥸 🥸 🥸 and then 🤖 🤖
+
+---
+
 ## Inline with Surrounding Text
 
 This is :big_brain: energy right here, truly amazing work.

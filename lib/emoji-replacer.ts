@@ -23,6 +23,17 @@ const POPOVER_GAP = 8;
 let popoverEl: HTMLElement | null = null;
 let hideTimeout: ReturnType<typeof setTimeout> | null = null;
 
+interface ReplacementMatch {
+  index: number;
+  length: number;
+  ref: string;
+  name: string;
+}
+
+interface EmojiMatcher {
+  nativeEmojiPattern: RegExp | null;
+}
+
 function getPopover(): HTMLElement {
   if (popoverEl && popoverEl.isConnected) return popoverEl;
 
@@ -159,25 +170,88 @@ function createEmojiImg(ref: string, name: string): HTMLElement {
   return img;
 }
 
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function createMatcher(nativeEmojiMap: EmojiMap): EmojiMatcher {
+  const nativeEmojiKeys = Object.keys(nativeEmojiMap).sort((a, b) => b.length - a.length);
+
+  return {
+    nativeEmojiPattern: nativeEmojiKeys.length > 0
+      ? new RegExp(nativeEmojiKeys.map(escapeRegex).join("|"), "gu")
+      : null,
+  };
+}
+
+function findNextReplacement(
+  text: string,
+  startIndex: number,
+  emojis: EmojiMap,
+  nativeEmojiMap: EmojiMap,
+  matcher: EmojiMatcher,
+): ReplacementMatch | null {
+  EMOJI_PATTERN.lastIndex = startIndex;
+  const colonMatch = EMOJI_PATTERN.exec(text);
+  const colonReplacement = colonMatch
+    ? (() => {
+        const emojiName = colonMatch[1];
+        const ref = resolveEmoji(emojiName, emojis);
+        if (!ref) return null;
+
+        return {
+          index: colonMatch.index,
+          length: colonMatch[0].length,
+          ref,
+          name: emojiName,
+        } satisfies ReplacementMatch;
+      })()
+    : null;
+
+  const nativePattern = matcher.nativeEmojiPattern;
+  let nativeReplacement: ReplacementMatch | null = null;
+
+  if (nativePattern) {
+    nativePattern.lastIndex = startIndex;
+    const nativeMatch = nativePattern.exec(text);
+    if (nativeMatch) {
+      const nativeEmoji = nativeMatch[0];
+      const ref = nativeEmojiMap[nativeEmoji];
+      if (ref) {
+        nativeReplacement = {
+          index: nativeMatch.index,
+          length: nativeEmoji.length,
+          ref,
+          name: nativeEmoji,
+        };
+      }
+    }
+  }
+
+  if (!colonReplacement) return nativeReplacement;
+  if (!nativeReplacement) return colonReplacement;
+
+  return colonReplacement.index <= nativeReplacement.index
+    ? colonReplacement
+    : nativeReplacement;
+}
+
 function processTextNode(
   textNode: Text,
   emojis: EmojiMap,
+  nativeEmojiMap: EmojiMap,
+  matcher: EmojiMatcher,
 ): void {
   const text = textNode.textContent;
-  if (!text || !EMOJI_PATTERN.test(text)) return;
-
-  EMOJI_PATTERN.lastIndex = 0;
+  if (!text) return;
 
   const fragment = document.createDocumentFragment();
   let lastIndex = 0;
-  let match: RegExpExecArray | null;
   let hadReplacement = false;
 
-  while ((match = EMOJI_PATTERN.exec(text)) !== null) {
-    const emojiName = match[1];
-    const emojiUrl = resolveEmoji(emojiName, emojis);
-
-    if (!emojiUrl) continue;
+  while (lastIndex < text.length) {
+    const match = findNextReplacement(text, lastIndex, emojis, nativeEmojiMap, matcher);
+    if (!match) break;
 
     hadReplacement = true;
 
@@ -187,8 +261,8 @@ function processTextNode(
       );
     }
 
-    fragment.appendChild(createEmojiImg(emojiUrl, emojiName));
-    lastIndex = match.index + match[0].length;
+    fragment.appendChild(createEmojiImg(match.ref, match.name));
+    lastIndex = match.index + match.length;
   }
 
   if (!hadReplacement) return;
@@ -203,17 +277,27 @@ function processTextNode(
 export function scanAndReplace(
   root: Node,
   emojis: EmojiMap,
+  nativeEmojiMap: EmojiMap = {},
 ): void {
-  if (Object.keys(emojis).length === 0) return;
+  if (Object.keys(emojis).length === 0 && Object.keys(nativeEmojiMap).length === 0) return;
+
+  const matcher = createMatcher(nativeEmojiMap);
 
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
     acceptNode(node) {
       if (shouldSkipNode(node)) return NodeFilter.FILTER_REJECT;
-      if (!node.textContent || !EMOJI_PATTERN.test(node.textContent)) {
-        EMOJI_PATTERN.lastIndex = 0;
+      const text = node.textContent;
+      if (!text) return NodeFilter.FILTER_REJECT;
+      const nativePattern = matcher.nativeEmojiPattern;
+
+      EMOJI_PATTERN.lastIndex = 0;
+      if (nativePattern) nativePattern.lastIndex = 0;
+
+      if (!EMOJI_PATTERN.test(text) && !nativePattern?.test(text)) {
         return NodeFilter.FILTER_REJECT;
       }
       EMOJI_PATTERN.lastIndex = 0;
+      if (nativePattern) nativePattern.lastIndex = 0;
       return NodeFilter.FILTER_ACCEPT;
     },
   });
@@ -225,12 +309,13 @@ export function scanAndReplace(
   }
 
   for (const textNode of textNodes) {
-    processTextNode(textNode, emojis);
+    processTextNode(textNode, emojis, nativeEmojiMap, matcher);
   }
 }
 
 export function createObserver(
   emojis: EmojiMap,
+  nativeEmojiMap: EmojiMap = {},
 ): MutationObserver {
   let pending = false;
   const pendingNodes: Set<Node> = new Set();
@@ -253,7 +338,7 @@ export function createObserver(
       requestAnimationFrame(() => {
         for (const node of pendingNodes) {
           if (node.isConnected) {
-            scanAndReplace(node, emojis);
+            scanAndReplace(node, emojis, nativeEmojiMap);
           }
         }
         pendingNodes.clear();
